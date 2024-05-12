@@ -1,0 +1,7 @@
+name: VillagerTradeEdit
+version: '1.0-SNAPSHOT'
+main: org.yusaki.villagertradeedit.VillagerTradeEdit
+api-version: '1.20'
+author: Yusaki
+description: Lets you edit villager trades.
+folia-supported: true
