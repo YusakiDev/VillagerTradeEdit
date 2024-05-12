@@ -1,0 +1,27 @@
+# mac files
+.DS_Store
+
+# ignore vscode stuff
+.settings
+.settings/
+.project
+
+# ignore other java files
+.gradle
+build/
+
+# Compiled class file
+*.class
+
+# Log file
+*.log
+
+# Package Files #
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
