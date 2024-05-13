@@ -4,6 +4,8 @@ import com.destroystokyo.paper.event.entity.EntityPathfindEvent;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
 import org.bukkit.event.EventHandler;
@@ -13,11 +15,19 @@ import org.bukkit.event.entity.VillagerCareerChangeEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.MerchantRecipe;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.util.io.BukkitObjectInputStream;
+import org.bukkit.util.io.BukkitObjectOutputStream;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.*;
 
 public class VillagerEditListener implements Listener {
@@ -29,6 +39,108 @@ public class VillagerEditListener implements Listener {
 
     public VillagerEditListener(VillagerTradeEdit plugin) {
         this.plugin = plugin;
+    }
+
+    @EventHandler
+    public void onChunkLoad(ChunkLoadEvent event) {
+        for (Entity entity : event.getChunk().getEntities()) {
+            if (entity instanceof Villager) {
+                Villager villager = (Villager) entity;
+                plugin.getLogger().info("Found villager in loaded chunk, attempting to retrieve data");
+                retrieveVillagerData(villager);
+            }
+        }
+    }
+
+    public void storeVillagerData(Villager villager) {
+        plugin.getLogger().info("Storing data for villager " + villager.getUniqueId());
+
+        PersistentDataContainer dataContainer = villager.getPersistentDataContainer();
+
+        NamespacedKey staticKey = new NamespacedKey(plugin, "static");
+        dataContainer.set(staticKey, PersistentDataType.STRING, staticMap.get(villager).toString());
+
+        NamespacedKey professionKey = new NamespacedKey(plugin, "profession");
+        dataContainer.set(professionKey, PersistentDataType.STRING, villager.getProfession().name());
+
+        NamespacedKey tradesKey = new NamespacedKey(plugin, "trades");
+        String tradesData = serializeMerchantRecipes(villager.getRecipes());
+        dataContainer.set(tradesKey, PersistentDataType.STRING, tradesData);
+
+        plugin.getLogger().info("Stored data for villager " + villager.getUniqueId());
+    }
+
+    public void retrieveVillagerData(Villager villager) {
+        plugin.getLogger().info("Retrieving data for villager " + villager.getUniqueId());
+
+        PersistentDataContainer dataContainer = villager.getPersistentDataContainer();
+
+        NamespacedKey staticKey = new NamespacedKey(plugin, "static");
+        String staticValue = dataContainer.get(staticKey, PersistentDataType.STRING);
+        staticMap.put(villager, Boolean.valueOf(staticValue));
+
+        NamespacedKey professionKey = new NamespacedKey(plugin, "profession");
+        String professionName = dataContainer.get(professionKey, PersistentDataType.STRING);
+        if (professionName != null) {
+            villager.setProfession(Villager.Profession.valueOf(professionName));
+        } else {
+            // Set a default profession if professionName is null
+            villager.setProfession(Villager.Profession.NONE);
+        }
+
+        NamespacedKey tradesKey = new NamespacedKey(plugin, "trades");
+        String tradesData = dataContainer.get(tradesKey, PersistentDataType.STRING);
+        villager.setRecipes(deserializeMerchantRecipes(tradesData));
+
+        plugin.getLogger().info("Retrieved data for villager " + villager.getUniqueId());
+    }
+    private String serializeMerchantRecipes(List<MerchantRecipe> recipes) {
+        try {
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            BukkitObjectOutputStream dataOutput = new BukkitObjectOutputStream(outputStream);
+
+            // Write the size of the list
+            dataOutput.writeInt(recipes.size());
+
+            // Save every element in the list
+            for (MerchantRecipe recipe : recipes) {
+                SerializableMerchantRecipe serializableRecipe = new SerializableMerchantRecipe(recipe);
+                dataOutput.writeObject(serializableRecipe);
+            }
+
+            // Serialize that array
+            dataOutput.close();
+            return Base64.getEncoder().encodeToString(outputStream.toByteArray());
+        } catch (Exception e) {
+            throw new IllegalStateException("Unable to save trades.", e);
+        }
+    }
+
+    private List<MerchantRecipe> deserializeMerchantRecipes(String data) {
+        if (data == null) {
+            // Return an empty list if data is null
+            return new ArrayList<>();
+        }
+
+        try {
+            ByteArrayInputStream inputStream = new ByteArrayInputStream(Base64.getDecoder().decode(data));
+            BukkitObjectInputStream dataInput = new BukkitObjectInputStream(inputStream);
+            int size = dataInput.readInt(); // Read the size of the list
+
+            List<MerchantRecipe> recipes = new ArrayList<>(size);
+
+            // Read the list
+            for (int i = 0; i < size; i++) {
+                SerializableMerchantRecipe serializableRecipe = (SerializableMerchantRecipe) dataInput.readObject();
+                MerchantRecipe recipe = serializableRecipe.toMerchantRecipe();
+                recipes.add(recipe);
+            }
+
+            dataInput.close();
+            return recipes;
+        } catch (IOException | ClassNotFoundException e) {
+            throw new IllegalStateException("Unable to load trades.", e);
+        }
     }
 
     @EventHandler
@@ -44,9 +156,6 @@ public class VillagerEditListener implements Listener {
 
         event.setCancelled(true);
         // Editing Mode: Make villager static at that moment
-        staticMap.put(villager, true);
-        villager.setInvulnerable(true);
-        villager.setCollidable(false);
 
 
         Inventory inv = Bukkit.createInventory(null,9*4, Component.text("Villager Trade Edit"));
@@ -253,6 +362,11 @@ public class VillagerEditListener implements Listener {
 
         // Update the villager's trades
         villager.setRecipes(newRecipes);
+
+        if (staticMap.get(villager) != null) {
+            plugin.SendMessage((Player) event.getPlayer(), "Inventory closed, storing data for villager " + villager.getUniqueId());
+            storeVillagerData(villager);
+        }
 
         // Remove the inventory from the map
         inventoryMap.remove(inv);

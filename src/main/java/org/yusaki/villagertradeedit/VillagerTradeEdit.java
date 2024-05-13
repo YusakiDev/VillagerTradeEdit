@@ -13,6 +13,7 @@ public final class VillagerTradeEdit extends JavaPlugin {
         getLogger().info("VillagerTradeEdit enabled!");
         VillagerEditListener villagerEditListener = new VillagerEditListener(this);
         getServer().getPluginManager().registerEvents(villagerEditListener, this);
+        getServer().getPluginManager().registerEvents(villagerEditListener, this);
     }
 
     @Override
