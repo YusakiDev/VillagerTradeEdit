@@ -1,11 +1,14 @@
 package org.yusaki.villagertradeedit;
 
+import com.destroystokyo.paper.event.entity.EntityPathfindEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.VillagerCareerChangeEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
@@ -14,15 +17,24 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.MerchantRecipe;
 import org.bukkit.inventory.meta.ItemMeta;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.io.File;
+import java.util.*;
 
 public class VillagerEditListener implements Listener {
 
-    //VillagerTradeEdit plugin = VillagerTradeEdit.getPlugin(VillagerTradeEdit.class);
+    VillagerTradeEdit plugin = VillagerTradeEdit.getPlugin(VillagerTradeEdit.class);
     private final Map<Inventory, Villager> inventoryMap = new HashMap<>();
+    private final Map<Villager, Boolean> staticMap = new HashMap<>();
+    private VillagerDataHandler villagerDataHandler = new VillagerDataHandler(new File(plugin.getDataFolder(), "villagerData.yml"));
+
+
+    public Map<UUID, VillagerData> loadAllVillagersData() {
+        return villagerDataHandler.loadAllVillagersData();
+    }
+
+    public Map<Villager, Boolean> getStaticMap() {
+        return staticMap;
+    }
 
     @EventHandler
     public void onPlayerInteractEntity(PlayerInteractEntityEvent event) {
@@ -36,7 +48,11 @@ public class VillagerEditListener implements Listener {
         }
 
         event.setCancelled(true);
-        villager.setAI(false);
+        // Editing Mode: Make villager static at that moment
+        staticMap.put(villager, true);
+        villager.setInvulnerable(true);
+        villager.setCollidable(false);
+
 
         Inventory inv = Bukkit.createInventory(null,9*4, "Villager Trade Edit");
 
@@ -71,9 +87,15 @@ public class VillagerEditListener implements Listener {
 
         ItemStack toggleAIItem = new ItemStack(Material.REDSTONE_TORCH);
         ItemMeta meta = toggleAIItem.getItemMeta();
-        meta.setDisplayName("Toggle AI");
+        meta.setDisplayName("Toggle Static Mode");
         toggleAIItem.setItemMeta(meta);
         inv.setItem(27, toggleAIItem);
+
+        ItemStack changeProfessionItem = new ItemStack(Material.LEATHER_CHESTPLATE);
+        meta = changeProfessionItem.getItemMeta();
+        meta.setDisplayName("Change Profession");
+        changeProfessionItem.setItemMeta(meta);
+        inv.setItem(28, changeProfessionItem);
 
         // Store the villager associated with this inventory
         inventoryMap.put(inv, villager);
@@ -91,7 +113,7 @@ public class VillagerEditListener implements Listener {
 
         // Check if the clicked item is glass
         ItemStack clickedItem = event.getCurrentItem();
-        if (event.getSlot() >= 27 && clickedItem != null){
+        if (event.getSlot() >= 27 && clickedItem != null) {
             // Cancel the event to prevent the player from picking up the glass
             event.setCancelled(true);
         }
@@ -103,27 +125,94 @@ public class VillagerEditListener implements Listener {
 
             //TODO: Not working
             // Toggle the villager's AI
-            if (villager.hasAI()) {
-                event.getWhoClicked().sendMessage("AI Disabled");
-                villager.setAI(false);
+            if (staticMap.get(villager) != null && staticMap.get(villager)){
+                plugin.SendMessage((Player) event.getWhoClicked(), "Static Mode Deactivated");
+                staticMap.remove(villager);
+                villager.setInvulnerable(false);
+                plugin.SendMessage((Player) event.getWhoClicked(), villager.isInvulnerable() + "");
                 ItemStack toggleAIItem = new ItemStack(Material.REDSTONE_TORCH);
                 ItemMeta meta = toggleAIItem.getItemMeta();
-                meta.setDisplayName("Toggle AI");
+                meta.setDisplayName("Toggle Static Mode");
                 toggleAIItem.setItemMeta(meta);
                 //set the item in the inventory
                 event.getClickedInventory().setItem(27, toggleAIItem);
             } else {
-                event.getWhoClicked().sendMessage("AI Enabled");
-                villager.setAI(true);
+                plugin.SendMessage((Player) event.getWhoClicked(), "Static Mode Activated");
+                staticMap.put(villager, true);
+                villager.setInvulnerable(true);
                 ItemStack toggleAIItem = new ItemStack(Material.SOUL_TORCH);
                 ItemMeta meta = toggleAIItem.getItemMeta();
-                meta.setDisplayName("Toggle AI");
+                meta.setDisplayName("Toggle Static Mode");
                 toggleAIItem.setItemMeta(meta);
                 //set the item in the inventory
                 event.getClickedInventory().setItem(27, toggleAIItem);
             }
 
             // Cancel the event to prevent the player from picking up the special item
+            event.setCancelled(true);
+            plugin.SendMessage((Player) event.getWhoClicked(), villager.isInvulnerable() + "");
+        }
+
+
+        if (event.getSlot() == 28 && clickedItem != null) {
+            // Get the villager associated with this inventory
+            Villager villager = inventoryMap.get(event.getClickedInventory());
+
+            // Get the current profession of the villager
+            Villager.Profession currentProfession = villager.getProfession();
+
+            // Get the next profession
+            Villager.Profession[] professions = Villager.Profession.values();
+            int currentIndex = currentProfession.ordinal();
+            int nextIndex = (currentIndex + 1) % professions.length;
+            Villager.Profession nextProfession = professions[nextIndex];
+
+            plugin.getLogger().info("Current profession: " + currentProfession);
+            plugin.getLogger().info("Next profession: " + nextProfession);
+            // Set the new profession for the villager
+            villager.setProfession(nextProfession);
+
+            plugin.getLogger().info("Profession after change: " + villager.getProfession());
+
+            ItemStack changeProfessionItem = event.getClickedInventory().getItem(28);
+            ItemMeta meta = changeProfessionItem.getItemMeta();
+            String professionName = nextProfession.name();
+            meta.setDisplayName("(" + professionName + ")");
+            changeProfessionItem.setItemMeta(meta);
+
+            // Cancel the event to prevent the player from picking up the change profession item
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onEntityPathFind(EntityPathfindEvent event) {
+        if (!(event.getEntity() instanceof Villager villager)) {
+            return;
+        }
+
+        if (Boolean.TRUE.equals(staticMap.get(villager))) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onEntityDamage(EntityDamageEvent event) {
+        if (!(event.getEntity() instanceof Villager villager)) {
+            return;
+        }
+
+        if (Boolean.TRUE.equals(staticMap.get(villager))) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onVillagerCareerChange(VillagerCareerChangeEvent event) {
+
+        Villager villager = event.getEntity();
+
+        if (Boolean.TRUE.equals(staticMap.get(villager))) {
             event.setCancelled(true);
         }
     }
@@ -172,5 +261,11 @@ public class VillagerEditListener implements Listener {
 
         // Remove the inventory from the map
         inventoryMap.remove(inv);
+
+        if (staticMap.get(villager) != null && staticMap.get(villager)) {
+            villagerDataHandler.saveVillagerData(villager);
+        } else {
+            villagerDataHandler.removeVillagerData(villager);
+        }
     }
 }
