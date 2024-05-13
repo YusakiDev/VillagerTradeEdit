@@ -35,19 +35,30 @@ public class VillagerEditListener implements Listener {
     VillagerTradeEdit plugin;
     private final Map<Inventory, Villager> inventoryMap = new HashMap<>();
     private final Map<Villager, Boolean> staticMap = new HashMap<>();
+    private final Set<UUID> retrievedVillagers = new HashSet<>();
 
 
     public VillagerEditListener(VillagerTradeEdit plugin) {
         this.plugin = plugin;
     }
 
+
+
     @EventHandler
     public void onChunkLoad(ChunkLoadEvent event) {
         for (Entity entity : event.getChunk().getEntities()) {
             if (entity instanceof Villager) {
                 Villager villager = (Villager) entity;
-                plugin.getLogger().info("Found villager in loaded chunk, attempting to retrieve data");
-                retrieveVillagerData(villager);
+                PersistentDataContainer dataContainer = villager.getPersistentDataContainer();
+
+                // Check if the villager has data stored
+                NamespacedKey staticKey = new NamespacedKey(plugin, "static");
+
+                if (dataContainer.has(staticKey, PersistentDataType.STRING) && !retrievedVillagers.contains(villager.getUniqueId())) {
+                    plugin.getLogger().info("Found villager with data in loaded chunk, attempting to retrieve data");
+                    retrieveVillagerData(villager);
+                    retrievedVillagers.add(villager.getUniqueId());
+                }
             }
         }
     }
@@ -78,6 +89,7 @@ public class VillagerEditListener implements Listener {
         NamespacedKey staticKey = new NamespacedKey(plugin, "static");
         String staticValue = dataContainer.get(staticKey, PersistentDataType.STRING);
         staticMap.put(villager, Boolean.valueOf(staticValue));
+        villager.setCollidable(!Boolean.parseBoolean(staticValue));
 
         NamespacedKey professionKey = new NamespacedKey(plugin, "profession");
         String professionName = dataContainer.get(professionKey, PersistentDataType.STRING);
@@ -244,6 +256,7 @@ public class VillagerEditListener implements Listener {
                 plugin.SendMessage((Player) event.getWhoClicked(), "Static Mode Activated");
                 staticMap.put(villager, true);
                 villager.setInvulnerable(true);
+                villager.setProfession(Villager.Profession.ARMORER);
                 ItemStack toggleAIItem = new ItemStack(Material.SOUL_TORCH);
                 ItemMeta meta = toggleAIItem.getItemMeta();
                 meta.displayName(Component.text("Toggle Static Mode"));
@@ -270,6 +283,12 @@ public class VillagerEditListener implements Listener {
             int currentIndex = currentProfession.ordinal();
             int nextIndex = (currentIndex + 1) % professions.length;
             Villager.Profession nextProfession = professions[nextIndex];
+
+            //Skip the NONE and NITWIT professions
+            if (nextProfession == Villager.Profession.NONE || nextProfession == Villager.Profession.NITWIT) {
+                nextIndex = (nextIndex + 1) % professions.length;
+                nextProfession = professions[nextIndex];
+            }
 
             plugin.getLogger().info("Current profession: " + currentProfession);
             plugin.getLogger().info("Next profession: " + nextProfession);
@@ -321,6 +340,7 @@ public class VillagerEditListener implements Listener {
         }
     }
 
+
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
         // Get the inventory that was closed
@@ -360,16 +380,17 @@ public class VillagerEditListener implements Listener {
             newRecipes.add(newRecipe);
         }
 
-        // Update the villager's trades
-        villager.setRecipes(newRecipes);
-
-        if (staticMap.get(villager) != null) {
+        // Check if the villager is static
+        if (staticMap.get(villager) != null && staticMap.get(villager)) {
+            // If the villager is static, update the villager's trades and store the villager data
+            villager.setRecipes(newRecipes);
             plugin.SendMessage((Player) event.getPlayer(), "Inventory closed, storing data for villager " + villager.getUniqueId());
             storeVillagerData(villager);
+        } else {
+            plugin.SendMessage((Player) event.getPlayer(), "Inventory closed, Villager is not static, trades not updated");
         }
 
         // Remove the inventory from the map
         inventoryMap.remove(inv);
-
     }
 }

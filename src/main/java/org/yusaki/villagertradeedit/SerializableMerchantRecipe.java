@@ -10,6 +10,9 @@ import org.bukkit.inventory.meta.ItemMeta;
 import java.io.Serializable;
 
 public class SerializableMerchantRecipe implements Serializable {
+
+    private static final long serialVersionUID = 1876190161652285790L;
+
     private final Material resultType;
     private final int resultAmount;
     private final String resultMeta;
