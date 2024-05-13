@@ -3,6 +3,7 @@ package org.yusaki.villagertradeedit;
 import com.destroystokyo.paper.event.entity.EntityPathfindEvent;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Entity;
@@ -24,6 +25,7 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.io.BukkitObjectInputStream;
 import org.bukkit.util.io.BukkitObjectOutputStream;
+import org.bukkit.util.Vector;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -166,6 +168,11 @@ public class VillagerEditListener implements Listener {
             return;
         }
 
+        if (!player.hasPermission("villagertradeedit.open")) {
+            plugin.SendMessage(player, "You do not have permission to edit villager trades.");
+            return;
+        }
+
         event.setCancelled(true);
         // Editing Mode: Make villager static at that moment
 
@@ -239,8 +246,6 @@ public class VillagerEditListener implements Listener {
             // Get the villager associated with this inventory
             Villager villager = inventoryMap.get(event.getClickedInventory());
 
-            //TODO: Not working
-            // Toggle the villager's AI
             if (staticMap.get(villager) != null && staticMap.get(villager)){
                 plugin.SendMessage((Player) event.getWhoClicked(), "Static Mode Deactivated");
                 staticMap.remove(villager);
@@ -256,7 +261,19 @@ public class VillagerEditListener implements Listener {
                 plugin.SendMessage((Player) event.getWhoClicked(), "Static Mode Activated");
                 staticMap.put(villager, true);
                 villager.setInvulnerable(true);
-                villager.setProfession(Villager.Profession.ARMORER);
+                villager.setAware(false);
+                villager.setVelocity(new Vector(0.0, 0.0, 0.0));
+                Location currentLocation = villager.getLocation();
+                Location centeredLocation = new Location(
+                        currentLocation.getWorld(),
+                        Math.floor(currentLocation.getX()) + 0.5,
+                        currentLocation.getY(),
+                        Math.floor(currentLocation.getZ()) + 0.5
+                );
+                villager.teleportAsync(centeredLocation);
+                if (villager.getProfession() == Villager.Profession.NONE || villager.getProfession() == Villager.Profession.NITWIT){
+                    villager.setProfession(Villager.Profession.ARMORER);
+                }
                 ItemStack toggleAIItem = new ItemStack(Material.SOUL_TORCH);
                 ItemMeta meta = toggleAIItem.getItemMeta();
                 meta.displayName(Component.text("Toggle Static Mode"));
@@ -392,5 +409,6 @@ public class VillagerEditListener implements Listener {
 
         // Remove the inventory from the map
         inventoryMap.remove(inv);
+        villager.setAware(true);
     }
 }
