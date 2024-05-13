@@ -19,6 +19,7 @@ repositories {
 }
 
 dependencies {
+    implementation 'org.json:json:20231013'
     compileOnly "io.papermc.paper:paper-api:1.20.4-R0.1-SNAPSHOT"
 }
 
@@ -38,6 +39,10 @@ tasks.withType(JavaCompile).configureEach {
     if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
         options.release.set(targetJavaVersion)
     }
+}
+
+tasks.withType(JavaCompile) {
+    options.compilerArgs << "-Xlint:deprecation" << "-Xlint:unchecked"
 }
 
 processResources {

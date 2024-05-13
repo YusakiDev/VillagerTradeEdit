@@ -1,6 +1,7 @@
 package org.yusaki.villagertradeedit;
 
 import com.destroystokyo.paper.event.entity.EntityPathfindEvent;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -17,23 +18,17 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.MerchantRecipe;
 import org.bukkit.inventory.meta.ItemMeta;
 
-import java.io.File;
 import java.util.*;
 
 public class VillagerEditListener implements Listener {
 
-    VillagerTradeEdit plugin = VillagerTradeEdit.getPlugin(VillagerTradeEdit.class);
+    VillagerTradeEdit plugin;
     private final Map<Inventory, Villager> inventoryMap = new HashMap<>();
     private final Map<Villager, Boolean> staticMap = new HashMap<>();
-    private VillagerDataHandler villagerDataHandler = new VillagerDataHandler(new File(plugin.getDataFolder(), "villagerData.yml"));
 
 
-    public Map<UUID, VillagerData> loadAllVillagersData() {
-        return villagerDataHandler.loadAllVillagersData();
-    }
-
-    public Map<Villager, Boolean> getStaticMap() {
-        return staticMap;
+    public VillagerEditListener(VillagerTradeEdit plugin) {
+        this.plugin = plugin;
     }
 
     @EventHandler
@@ -54,7 +49,7 @@ public class VillagerEditListener implements Listener {
         villager.setCollidable(false);
 
 
-        Inventory inv = Bukkit.createInventory(null,9*4, "Villager Trade Edit");
+        Inventory inv = Bukkit.createInventory(null,9*4, Component.text("Villager Trade Edit"));
 
         // Get the villager's trades
         List<MerchantRecipe> recipes = villager.getRecipes();
@@ -87,13 +82,13 @@ public class VillagerEditListener implements Listener {
 
         ItemStack toggleAIItem = new ItemStack(Material.REDSTONE_TORCH);
         ItemMeta meta = toggleAIItem.getItemMeta();
-        meta.setDisplayName("Toggle Static Mode");
+        meta.displayName(Component.text("Toggle Static Mode"));
         toggleAIItem.setItemMeta(meta);
         inv.setItem(27, toggleAIItem);
 
         ItemStack changeProfessionItem = new ItemStack(Material.LEATHER_CHESTPLATE);
         meta = changeProfessionItem.getItemMeta();
-        meta.setDisplayName("Change Profession");
+        meta.displayName(Component.text("Change Profession"));
         changeProfessionItem.setItemMeta(meta);
         inv.setItem(28, changeProfessionItem);
 
@@ -132,7 +127,7 @@ public class VillagerEditListener implements Listener {
                 plugin.SendMessage((Player) event.getWhoClicked(), villager.isInvulnerable() + "");
                 ItemStack toggleAIItem = new ItemStack(Material.REDSTONE_TORCH);
                 ItemMeta meta = toggleAIItem.getItemMeta();
-                meta.setDisplayName("Toggle Static Mode");
+                meta.displayName(Component.text("Toggle Static Mode"));
                 toggleAIItem.setItemMeta(meta);
                 //set the item in the inventory
                 event.getClickedInventory().setItem(27, toggleAIItem);
@@ -142,7 +137,7 @@ public class VillagerEditListener implements Listener {
                 villager.setInvulnerable(true);
                 ItemStack toggleAIItem = new ItemStack(Material.SOUL_TORCH);
                 ItemMeta meta = toggleAIItem.getItemMeta();
-                meta.setDisplayName("Toggle Static Mode");
+                meta.displayName(Component.text("Toggle Static Mode"));
                 toggleAIItem.setItemMeta(meta);
                 //set the item in the inventory
                 event.getClickedInventory().setItem(27, toggleAIItem);
@@ -177,7 +172,7 @@ public class VillagerEditListener implements Listener {
             ItemStack changeProfessionItem = event.getClickedInventory().getItem(28);
             ItemMeta meta = changeProfessionItem.getItemMeta();
             String professionName = nextProfession.name();
-            meta.setDisplayName("(" + professionName + ")");
+            meta.displayName(Component.text("(" + professionName + ")"));
             changeProfessionItem.setItemMeta(meta);
 
             // Cancel the event to prevent the player from picking up the change profession item
@@ -262,10 +257,5 @@ public class VillagerEditListener implements Listener {
         // Remove the inventory from the map
         inventoryMap.remove(inv);
 
-        if (staticMap.get(villager) != null && staticMap.get(villager)) {
-            villagerDataHandler.saveVillagerData(villager);
-        } else {
-            villagerDataHandler.removeVillagerData(villager);
-        }
     }
 }
