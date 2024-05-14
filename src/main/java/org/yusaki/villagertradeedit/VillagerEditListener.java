@@ -1,6 +1,8 @@
 package org.yusaki.villagertradeedit;
 
 import com.destroystokyo.paper.event.entity.EntityPathfindEvent;
+import com.tcoded.folialib.FoliaLib;
+import io.papermc.paper.threadedregions.scheduler.AsyncScheduler;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -42,6 +44,7 @@ import java.util.*;
 public class VillagerEditListener implements Listener {
 
     static VillagerTradeEdit plugin;
+    FoliaLib foliaLib;
     private final Map<Inventory, Villager> inventoryMap = new HashMap<>();
     private final Map<Villager, Boolean> staticMap = new HashMap<>();
     private final Set<UUID> retrievedVillagers = new HashSet<>();
@@ -54,6 +57,7 @@ public class VillagerEditListener implements Listener {
 
     public VillagerEditListener(VillagerTradeEdit plugin) {
         VillagerEditListener.plugin = plugin;
+        foliaLib = new FoliaLib(plugin);
         STATIC_KEY = new NamespacedKey(plugin, "static");
         PROFESSION_KEY = new NamespacedKey(plugin, "profession");
         TRADES_KEY = new NamespacedKey(plugin, "trades");
@@ -274,6 +278,12 @@ public class VillagerEditListener implements Listener {
         changeProfessionItem.setItemMeta(meta);
         inv.setItem(28, changeProfessionItem);
 
+        ItemStack setNameItem = new ItemStack(Material.NAME_TAG);
+        ItemMeta setNameMeta = setNameItem.getItemMeta();
+        setNameMeta.displayName(Component.text("Set Name"));
+        setNameItem.setItemMeta(setNameMeta);
+        inv.setItem(29, setNameItem);
+
         // Store the villager associated with this inventory
         inventoryMap.put(inv, villager);
 
@@ -314,60 +324,16 @@ public class VillagerEditListener implements Listener {
             event.setCancelled(true);
         }
 
-        ItemStack setNameItem = new ItemStack(Material.NAME_TAG);
-        ItemMeta setNameMeta = setNameItem.getItemMeta();
-        setNameMeta.displayName(Component.text("Set Name"));
-        setNameItem.setItemMeta(setNameMeta);
-        inv.setItem(29, setNameItem);
-
         if (event.getSlot() == 29 && clickedItem != null) {
-            handleSetName(villager, player);
+            handleSetName(villager, player, inv);
             event.setCancelled(true);
         }
     }
 
-    private void handleSetName(Villager villager, Player player) {
+    private void handleSetName(Villager villager, Player player, Inventory inv) {
         // Prompt the player to enter the new name
-        plugin.sendMessage(player, "Enter the new name for the villager:");
-
-        // Listen for the next message from the player
-        Bukkit.getPluginManager().registerEvents(new Listener() {
-            @EventHandler
-            public void onPlayerChat(AsyncPlayerChatEvent event) {
-                if (event.getPlayer().equals(player)) {
-                    // Set the new name for the villager
-
-                    if (event.getMessage().equalsIgnoreCase("cancel")) {
-                        plugin.sendMessage(player, "Name change cancelled");
-                        HandlerList.unregisterAll(this);
-                        event.setCancelled(true);
-                        return;
-                    } else if (event.getMessage().equalsIgnoreCase("none")){
-                        villager.customName(null);
-                        villager.setCustomNameVisible(false);
-                        plugin.sendMessage(player, "Name removed");
-                        HandlerList.unregisterAll(this);
-                        event.setCancelled(true);
-
-                        return;
-                    }
-
-                    if (event.getMessage().length() > 16) {
-                        plugin.sendMessage(player, "Name is too long, please enter a name with 16 characters or less");
-                        event.setCancelled(true);
-                        return;
-                    }
-
-                    villager.customName(Component.text(event.getMessage()));
-                    villager.setCustomNameVisible(true);
-
-                    // Unregister this listener
-                    HandlerList.unregisterAll(this);
-
-                    event.setCancelled(true);
-                }
-            }
-        }, plugin);
+        plugin.sendMessage(player, "This Feature is not implemented yet.)");
+        updateNameDisplayItem(inv, "Set Name");
     }
 
     /**
@@ -499,6 +465,14 @@ public class VillagerEditListener implements Listener {
         meta.displayName(Component.text(displayName));
         toggleAIItem.setItemMeta(meta);
         inv.setItem(27, toggleAIItem);
+    }
+
+    private void updateNameDisplayItem(Inventory inv, String displayName) {
+        ItemStack setNameItem = new ItemStack(Material.NAME_TAG);
+        ItemMeta setNameMeta = setNameItem.getItemMeta();
+        setNameMeta.displayName(Component.text(displayName));
+        setNameItem.setItemMeta(setNameMeta);
+        inv.setItem(29, setNameItem);
     }
 
     /**

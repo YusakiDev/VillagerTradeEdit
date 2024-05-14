@@ -26,5 +26,10 @@
       <option name="name" value="sonatype" />
       <option name="url" value="https://oss.sonatype.org/content/groups/public/" />
     </remote-repository>
+    <remote-repository>
+      <option name="id" value="devmart-other" />
+      <option name="name" value="devmart-other" />
+      <option name="url" value="https://nexuslite.gcnt.net/repos/other/" />
+    </remote-repository>
   </component>
 </project>

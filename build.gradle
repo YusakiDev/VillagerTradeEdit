@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'com.github.johnrengelman.shadow' version '7.1.2'
 }
 
 group = 'org.yusaki'
@@ -15,12 +16,21 @@ repositories {
         name = "sonatype"
         url = "https://oss.sonatype.org/content/groups/public/"
     }
+    maven {
+        name = "devmart-other"
+        url = "https://nexuslite.gcnt.net/repos/other/"
+    }
 
 }
 
 dependencies {
+    implementation "com.tcoded:FoliaLib:0.3.1"
     compileOnly "io.papermc.paper:paper-api:1.20.4-R0.1-SNAPSHOT"
 
+}
+
+shadowJar {
+    relocate 'com.tcoded.folialib', 'org.yusaki.lib.folialib'
 }
 
 def targetJavaVersion = 17
