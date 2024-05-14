@@ -214,7 +214,7 @@ public class VillagerEditListener implements Listener {
         }
 
         if (!player.hasPermission("villagertradeedit.open")) {
-            plugin.sendMessage(player, "You do not have permission to edit villager trades.");
+            plugin.logDebugPlayer(player, "&cNo permission to open villager trade edit");
             return;
         }
 

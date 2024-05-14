@@ -67,7 +67,7 @@ public final class VillagerTradeEdit extends JavaPlugin {
 
     public void logDebugPlayer(Player player, String message) {
         if (getConfig().getBoolean("debug")) {
-            player.sendMessage(message);
+            sendMessage(player, message);
         }
     }
 
@@ -113,7 +113,7 @@ public final class VillagerTradeEdit extends JavaPlugin {
         reloadConfig();
     }
 
-    private void reloadPlugin() {
+    void reloadPlugin() {
         reloadConfig();
     }
 }

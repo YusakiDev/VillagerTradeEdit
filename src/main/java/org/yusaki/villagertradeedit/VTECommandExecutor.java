@@ -68,7 +68,7 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
                 plugin.sendMessage(player, "noPermission");
                 return true;
             }
-            plugin.reloadConfig();
+            plugin.reloadPlugin();
             plugin.sendMessage(player, "configReloaded");
             return true;
         }
