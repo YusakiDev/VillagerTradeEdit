@@ -18,10 +18,12 @@ import java.util.List;
 
 public class VTECommandExecutor implements CommandExecutor, TabCompleter {
     private final VillagerTradeEdit plugin;
+    private final YskLibWrapper wrapper;
     private final VillagerEditListener villagerEditListener;
 
-    public VTECommandExecutor(VillagerTradeEdit plugin, VillagerEditListener villagerEditListener) {
+    public VTECommandExecutor(VillagerTradeEdit plugin, VillagerEditListener villagerEditListener, YskLibWrapper wrapper) {
         this.plugin = plugin;
+        this.wrapper = wrapper;
         this.villagerEditListener = villagerEditListener;
     }
 
@@ -33,22 +35,22 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
         }
 
         if (!player.hasPermission("villagertradeedit.command")) {
-            plugin.sendMessage(player, "noPermission");
+            wrapper.sendMessage(player, "noPermission");
             return true;
         }
 
         if (args.length == 0) {
-            plugin.sendMessage(player, "VillagerTradeEdit by Yusaki");
+            wrapper.sendMessage(player, "VillagerTradeEdit by Yusaki");
             return true;
         }
 
         if ("summon".equalsIgnoreCase(args[0])) {
             if (!player.hasPermission("villagertradeedit.command.summon")) {
-                plugin.sendMessage(player, "noPermission");
+                wrapper.sendMessage(player, "noPermission");
                 return true;
             }
-            if (!plugin.yskLib.canExecuteInWorld(plugin, player.getWorld())) {
-                plugin.sendMessage(player, "disabledWorld");
+            if (!wrapper.canExecuteInWorld(player.getWorld())) {
+                wrapper.sendMessage(player, "disabledWorld");
                 return true;
             }
             BlockIterator iterator = new BlockIterator(player, 5);
@@ -66,17 +68,17 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
                     return true;
                 }
             }
-            plugin.sendMessage(player, "No block in range to spawn villager.");
+            wrapper.sendMessage(player, "No block in range to spawn villager.");
             return true;
         }
 
         if ("reload".equalsIgnoreCase(args[0])) {
             if (!player.hasPermission("villagertradeedit.command.reload")) {
-                plugin.sendMessage(player, "noPermission");
+                wrapper.sendMessage(player, "noPermission");
                 return true;
             }
             plugin.reloadConfig();
-            plugin.sendMessage(player, "configReloaded");
+            wrapper.sendMessage(player, "configReloaded");
             return true;
         }
 
