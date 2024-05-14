@@ -54,7 +54,6 @@ public class VillagerEditListener implements Listener {
     private final NamespacedKey TRADES_KEY;
 
 
-
     public VillagerEditListener(VillagerTradeEdit plugin) {
         VillagerEditListener.plugin = plugin;
         foliaLib = new FoliaLib(plugin);
@@ -76,6 +75,9 @@ public class VillagerEditListener implements Listener {
      */
     @EventHandler
     public void onChunkLoad(ChunkLoadEvent event) {
+        if (!plugin.canExecuteInWorld(event.getWorld())) {
+            return;
+        }
         for (Entity entity : event.getChunk().getEntities()) {
             if (entity instanceof Villager) {
                 Villager villager = (Villager) entity;
@@ -212,6 +214,10 @@ public class VillagerEditListener implements Listener {
     @EventHandler
     public void onPlayerInteractEntity(PlayerInteractEntityEvent event) {
         if (!(event.getRightClicked() instanceof Villager villager)) {
+            return;
+        }
+
+        if (!plugin.canExecuteInWorld(villager.getWorld())) {
             return;
         }
 

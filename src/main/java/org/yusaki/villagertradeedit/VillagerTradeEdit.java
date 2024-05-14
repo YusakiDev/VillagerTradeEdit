@@ -1,12 +1,15 @@
 package org.yusaki.villagertradeedit;
 
 import org.bukkit.ChatColor;
+import org.bukkit.World;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.InputStreamReader;
+import java.util.List;
 import java.util.Objects;
 
 
@@ -32,6 +35,18 @@ public final class VillagerTradeEdit extends JavaPlugin {
     @Override
     public void onDisable() {
         getLogger().info("VillagerTradeEdit disabled!");
+    }
+
+    public boolean canExecuteInWorld(World world) {
+        // Get a reference to your plugin's configuration.
+        // How you do this will likely be different based on your plugin's structure.
+        FileConfiguration config = getConfig();
+
+        // Load the enabled worlds from the config into a list.
+        List<String> enabledWorlds = config.getStringList("enabled-worlds");
+
+        // Check if the current world's name is in the list of enabled worlds.
+        return enabledWorlds.contains(world.getName());
     }
 
     void sendMessage(CommandSender sender, String key , Object... args) {

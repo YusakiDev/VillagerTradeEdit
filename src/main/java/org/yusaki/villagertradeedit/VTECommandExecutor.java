@@ -44,6 +44,10 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
                 plugin.sendMessage(player, "noPermission");
                 return true;
             }
+            if (!plugin.canExecuteInWorld(player.getWorld())) {
+                plugin.sendMessage(player, "disabledWorld");
+                return true;
+            }
             BlockIterator iterator = new BlockIterator(player, 5);
             while (iterator.hasNext()) {
                 Block block = iterator.next();
