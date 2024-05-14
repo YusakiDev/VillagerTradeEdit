@@ -222,6 +222,29 @@ public class VillagerEditListener implements Listener {
         return null; // Return null if no inventory is associated with the villager
     }
 
+    private static void listVillagerTrades(Villager villager, Inventory inv) {
+        List<MerchantRecipe> recipes = villager.getRecipes();
+
+        // For each trade, add the input items and output item to the inventory
+        for (int i = 0; i < recipes.size(); i++) {
+            MerchantRecipe recipe = recipes.get(i);
+
+            // Get the input items and output item
+            List<ItemStack> ingredients = recipe.getIngredients();
+            ItemStack result = recipe.getResult();
+
+            // Add the items to the inventory
+            inv.setItem(i, ingredients.get(0));
+            if (ingredients.size() > 1) {
+                inv.setItem(i + 9, ingredients.get(1));
+            } else {
+                // If there is only one input item, add an empty slot
+                inv.setItem(i + 9, new ItemStack(Material.AIR));
+            }
+            inv.setItem(i + 18, result);
+        }
+    }
+
     /**
      * The onPlayerInteractEntity method is an event handler method that is called when a player interacts with an entity.
      * It checks if the entity is a Villager and if the player is sneaking. If both conditions are met, it opens an inventory
@@ -269,26 +292,7 @@ public class VillagerEditListener implements Listener {
             inv = Bukkit.createInventory(null, 9 * 4, Component.text("Villager Trade Edit"));
 
             // Get the villager's trades
-            List<MerchantRecipe> recipes = villager.getRecipes();
-
-            // For each trade, add the input items and output item to the inventory
-            for (int i = 0; i < recipes.size(); i++) {
-                MerchantRecipe recipe = recipes.get(i);
-
-                // Get the input items and output item
-                List<ItemStack> ingredients = recipe.getIngredients();
-                ItemStack result = recipe.getResult();
-
-                // Add the items to the inventory
-                inv.setItem(i, ingredients.get(0));
-                if (ingredients.size() > 1) {
-                    inv.setItem(i + 9, ingredients.get(1));
-                } else {
-                    // If there is only one input item, add an empty slot
-                    inv.setItem(i + 9, new ItemStack(Material.AIR));
-                }
-                inv.setItem(i + 18, result);
-            }
+            listVillagerTrades(villager, inv);
         }
 
 
@@ -393,28 +397,30 @@ public class VillagerEditListener implements Listener {
         List<MerchantRecipe> newRecipes = new ArrayList<>();
 
         // For each slot in the inventory, create a new MerchantRecipe and add it to the list
-        for (int i = 0; i < inv.getSize() / 3; i++) {
+        for (int i = 0; i < inv.getSize() / 4; i++) {
             // Get the input items and output item from the inventory
             ItemStack ingredient1 = inv.getItem(i);
             ItemStack ingredient2 = inv.getItem(i + 9);
             ItemStack result = inv.getItem(i + 18);
 
             // If the result is null or AIR, skip this slot
-            if (result == null || result.getType() == Material.AIR) {
+            if (result == null || result.getType() == Material.AIR || (ingredient1 == null || ingredient1.getType() == Material.AIR) && (ingredient2 == null || ingredient2.getType() == Material.AIR)) {
                 continue;
             }
 
             // Create a new MerchantRecipe
             MerchantRecipe newRecipe = new MerchantRecipe(result, 9999);
-            if (ingredient1 == null || ingredient1.getType() == Material.AIR) {
-                continue;
+            if (ingredient1 != null && ingredient1.getType() != Material.AIR) {
+                newRecipe.addIngredient(ingredient1);
+                wrapper.sendMessage(player, "Ingredient 1: " + ingredient1.getType());
             }
-            newRecipe.addIngredient(ingredient1);
             if (ingredient2 != null && ingredient2.getType() != Material.AIR) {
                 newRecipe.addIngredient(ingredient2);
+                wrapper.sendMessage(player, "Ingredient 2: " + ingredient2.getType());
             }
 
             newRecipes.add(newRecipe);
+            wrapper.sendMessage(player, "Result: " + result.getType());
         }
 
         // Store the villager's data
@@ -436,6 +442,7 @@ public class VillagerEditListener implements Listener {
         // Close the inventory
         player.closeInventory();
         inventoryMap.remove(inv);
+        tradeAlteredMap.remove(inv);
 
 
     }
@@ -499,8 +506,13 @@ public class VillagerEditListener implements Listener {
         }
         if (isStatic) {
             deactivateStaticMode(villager, player);
+            inventoryMap.remove(inv);
+            tradeAlteredMap.remove(inv);
+            inv.close();
         } else {
             activateStaticMode(villager, player);
+            // Get the villager's trades
+            listVillagerTrades(villager, inv);
         }
 
         if (isStatic) {
@@ -521,9 +533,11 @@ public class VillagerEditListener implements Listener {
     private void handleProfessionChange(Villager villager, Player player, Inventory inv) {
         Villager.Profession currentProfession = villager.getProfession();
         Villager.Profession nextProfession = getNextProfession(currentProfession);
-
         villager.setProfession(nextProfession);
         updateProfessionDisplayItem(inv, nextProfession);
+        tradeAlteredMap.put(inv, true);
+        updateSaveButtonColor(inv);
+        listVillagerTrades(villager, inv);
     }
 
     /**
@@ -634,7 +648,9 @@ public class VillagerEditListener implements Listener {
             return;
         }
 
-        if (Boolean.TRUE.equals(staticMap.get(villager))) {
+        Boolean isStatic = staticMap.get(villager);
+
+        if (isStatic != null && isStatic) {
             event.setCancelled(true);
         }
     }
@@ -691,7 +707,8 @@ public class VillagerEditListener implements Listener {
     public void onInventoryClose(InventoryCloseEvent event) {
         if (inventoryMap.containsKey(event.getInventory())) {
             Villager villager = inventoryMap.get(event.getInventory());
-            if (Boolean.FALSE.equals(staticMap.get(villager))) {
+            if (staticMap.get(villager) == null || !staticMap.get(villager)) {
+                tradeAlteredMap.remove(event.getInventory());
                 inventoryMap.remove(event.getInventory());
             }
         }
