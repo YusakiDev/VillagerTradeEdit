@@ -38,7 +38,10 @@ public final class VillagerTradeEdit extends JavaPlugin {
         // Retrieve the message from the configuration
         String message = getConfig().getString("messages." + key);
         String prefix = getConfig().getString("messages.prefix");
-        if (message != null && prefix != null) {
+        if (prefix == null) {
+            prefix = "";
+        }
+        if (message != null) {
             // Format the message with the provided arguments
             message = String.format(message, args);
 
@@ -48,7 +51,11 @@ public final class VillagerTradeEdit extends JavaPlugin {
 
             sender.sendMessage(prefix + message);
         } else {
-            sender.sendMessage("Raw message: " + key);
+
+            key = ChatColor.translateAlternateColorCodes('&', key);
+            prefix = ChatColor.translateAlternateColorCodes('&', prefix);
+
+            sender.sendMessage(prefix + key);
         }
     }
 

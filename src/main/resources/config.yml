@@ -6,3 +6,5 @@ version: 1.0
 
 messages:
   prefix: "&7[&6VTE&7] &r"
+  noPermission: "&cYou do not have permission to do this"
+  configReloaded: "&aConfig reloaded"

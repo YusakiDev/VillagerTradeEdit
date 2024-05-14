@@ -10,7 +10,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
 import org.bukkit.util.BlockIterator;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,18 +31,18 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
         }
 
         if (!player.hasPermission("villagertradeedit.command")) {
-            player.sendMessage(ChatColor.RED + "You do not have permission to use this command.");
+            plugin.sendMessage(player, "noPermission");
             return true;
         }
 
         if (args.length == 0) {
-            player.sendMessage(ChatColor.RED + "Usage: /vte summon");
+            plugin.sendMessage(player, "VillagerTradeEdit by Yusaki");
             return true;
         }
 
         if (args.length > 0 && "summon".equalsIgnoreCase(args[0])) {
             if (!player.hasPermission("villagertradeedit.command.summon")) {
-                player.sendMessage(ChatColor.RED + "You do not have permission to use this subcommand.");
+                plugin.sendMessage(player, "noPermission");
                 return true;
             }
             BlockIterator iterator = new BlockIterator(player, 5);
@@ -61,17 +60,17 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
                     return true;
                 }
             }
-            player.sendMessage(ChatColor.RED + "No block in sight.");
+            plugin.sendMessage(player, "No block in range to spawn villager.");
             return true;
         }
 
         if (args.length > 0 && "reload".equalsIgnoreCase(args[0])) {
             if (!player.hasPermission("villagertradeedit.command.reload")) {
-                player.sendMessage(ChatColor.RED + "You do not have permission to use this subcommand.");
+                plugin.sendMessage(player, "noPermission");
                 return true;
             }
             plugin.reloadConfig();
-            player.sendMessage(ChatColor.GREEN + "Configuration reloaded.");
+            plugin.sendMessage(player, "configReloaded");
             return true;
         }
 
