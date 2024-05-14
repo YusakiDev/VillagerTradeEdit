@@ -10,11 +10,14 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.VillagerCareerChangeEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.inventory.Inventory;
@@ -310,6 +313,61 @@ public class VillagerEditListener implements Listener {
             handleProfessionChange(villager, player, inv);
             event.setCancelled(true);
         }
+
+        ItemStack setNameItem = new ItemStack(Material.NAME_TAG);
+        ItemMeta setNameMeta = setNameItem.getItemMeta();
+        setNameMeta.displayName(Component.text("Set Name"));
+        setNameItem.setItemMeta(setNameMeta);
+        inv.setItem(29, setNameItem);
+
+        if (event.getSlot() == 29 && clickedItem != null) {
+            handleSetName(villager, player);
+            event.setCancelled(true);
+        }
+    }
+
+    private void handleSetName(Villager villager, Player player) {
+        // Prompt the player to enter the new name
+        plugin.sendMessage(player, "Enter the new name for the villager:");
+
+        // Listen for the next message from the player
+        Bukkit.getPluginManager().registerEvents(new Listener() {
+            @EventHandler
+            public void onPlayerChat(AsyncPlayerChatEvent event) {
+                if (event.getPlayer().equals(player)) {
+                    // Set the new name for the villager
+
+                    if (event.getMessage().equalsIgnoreCase("cancel")) {
+                        plugin.sendMessage(player, "Name change cancelled");
+                        HandlerList.unregisterAll(this);
+                        event.setCancelled(true);
+                        return;
+                    } else if (event.getMessage().equalsIgnoreCase("none")){
+                        villager.customName(null);
+                        villager.setCustomNameVisible(false);
+                        plugin.sendMessage(player, "Name removed");
+                        HandlerList.unregisterAll(this);
+                        event.setCancelled(true);
+
+                        return;
+                    }
+
+                    if (event.getMessage().length() > 16) {
+                        plugin.sendMessage(player, "Name is too long, please enter a name with 16 characters or less");
+                        event.setCancelled(true);
+                        return;
+                    }
+
+                    villager.customName(Component.text(event.getMessage()));
+                    villager.setCustomNameVisible(true);
+
+                    // Unregister this listener
+                    HandlerList.unregisterAll(this);
+
+                    event.setCancelled(true);
+                }
+            }
+        }, plugin);
     }
 
     /**
@@ -491,6 +549,20 @@ public class VillagerEditListener implements Listener {
         Villager villager = event.getEntity();
 
         if (Boolean.TRUE.equals(staticMap.get(villager))) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
+        if (!(event.getEntity() instanceof Villager) || !(event.getDamager() instanceof Player)) {
+            return;
+        }
+
+        Player player = (Player) event.getDamager();
+        ItemStack itemInHand = player.getInventory().getItemInMainHand();
+
+        if (itemInHand.getType() == Material.NAME_TAG) {
             event.setCancelled(true);
         }
     }
