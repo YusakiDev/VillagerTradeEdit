@@ -1,6 +1,5 @@
 package org.yusaki.villagertradeedit;
 
-import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -40,7 +39,7 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        if (args.length > 0 && "summon".equalsIgnoreCase(args[0])) {
+        if ("summon".equalsIgnoreCase(args[0])) {
             if (!player.hasPermission("villagertradeedit.command.summon")) {
                 plugin.sendMessage(player, "noPermission");
                 return true;
@@ -64,7 +63,7 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        if (args.length > 0 && "reload".equalsIgnoreCase(args[0])) {
+        if ("reload".equalsIgnoreCase(args[0])) {
             if (!player.hasPermission("villagertradeedit.command.reload")) {
                 plugin.sendMessage(player, "noPermission");
                 return true;
