@@ -15,15 +15,10 @@ repositories {
         name = "sonatype"
         url = "https://oss.sonatype.org/content/groups/public/"
     }
-    flatDir {
-        dirs 'libs'
-    }
 
 }
 
 dependencies {
-    implementation name: 'server'
-    implementation 'org.json:json:20231013'
     compileOnly "io.papermc.paper:paper-api:1.20.4-R0.1-SNAPSHOT"
 
 }

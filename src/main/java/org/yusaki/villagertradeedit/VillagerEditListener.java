@@ -210,13 +210,19 @@ public class VillagerEditListener implements Listener {
 
         ItemStack toggleAIItem = new ItemStack(Material.REDSTONE_TORCH);
         ItemMeta meta = toggleAIItem.getItemMeta();
-        meta.displayName(Component.text("Toggle Static Mode"));
+        meta.displayName(Component.text("Static Mode: False"));
+
+        if (staticMap.get(villager) != null && staticMap.get(villager)){
+            toggleAIItem = new ItemStack(Material.SOUL_TORCH);
+            meta.displayName(Component.text("Static Mode: True"));
+        }
+
         toggleAIItem.setItemMeta(meta);
         inv.setItem(27, toggleAIItem);
 
         ItemStack changeProfessionItem = new ItemStack(Material.LEATHER_CHESTPLATE);
         meta = changeProfessionItem.getItemMeta();
-        meta.displayName(Component.text("Change Profession"));
+        meta.displayName(Component.text(("(" + villager.getProfession().name() + ")")));
         changeProfessionItem.setItemMeta(meta);
         inv.setItem(28, changeProfessionItem);
 
@@ -229,100 +235,107 @@ public class VillagerEditListener implements Listener {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        // Check if the clicked inventory is one of the villager edit inventories
         if (!inventoryMap.containsKey(event.getClickedInventory())) {
             return;
         }
 
-        // Check if the clicked item is glass
+        Villager villager = inventoryMap.get(event.getClickedInventory());
+        Inventory inv = event.getClickedInventory();
+        Player player = (Player) event.getWhoClicked();
         ItemStack clickedItem = event.getCurrentItem();
+
         if (event.getSlot() >= 27 && clickedItem != null) {
-            // Cancel the event to prevent the player from picking up the glass
             event.setCancelled(true);
         }
 
-        // Check if the clicked item is the special item
         if (event.getSlot() == 27 && clickedItem != null) {
-            // Get the villager associated with this inventory
-            Villager villager = inventoryMap.get(event.getClickedInventory());
-
-            if (staticMap.get(villager) != null && staticMap.get(villager)){
-                plugin.SendMessage((Player) event.getWhoClicked(), "Static Mode Deactivated");
-                staticMap.remove(villager);
-                villager.setInvulnerable(false);
-                plugin.SendMessage((Player) event.getWhoClicked(), villager.isInvulnerable() + "");
-                ItemStack toggleAIItem = new ItemStack(Material.REDSTONE_TORCH);
-                ItemMeta meta = toggleAIItem.getItemMeta();
-                meta.displayName(Component.text("Toggle Static Mode"));
-                toggleAIItem.setItemMeta(meta);
-                //set the item in the inventory
-                event.getClickedInventory().setItem(27, toggleAIItem);
-            } else {
-                plugin.SendMessage((Player) event.getWhoClicked(), "Static Mode Activated");
-                staticMap.put(villager, true);
-                villager.setInvulnerable(true);
-                villager.setAware(false);
-                villager.setVelocity(new Vector(0.0, 0.0, 0.0));
-                Location currentLocation = villager.getLocation();
-                Location centeredLocation = new Location(
-                        currentLocation.getWorld(),
-                        Math.floor(currentLocation.getX()) + 0.5,
-                        currentLocation.getY(),
-                        Math.floor(currentLocation.getZ()) + 0.5
-                );
-                villager.teleportAsync(centeredLocation);
-                if (villager.getProfession() == Villager.Profession.NONE || villager.getProfession() == Villager.Profession.NITWIT){
-                    villager.setProfession(Villager.Profession.ARMORER);
-                }
-                ItemStack toggleAIItem = new ItemStack(Material.SOUL_TORCH);
-                ItemMeta meta = toggleAIItem.getItemMeta();
-                meta.displayName(Component.text("Toggle Static Mode"));
-                toggleAIItem.setItemMeta(meta);
-                //set the item in the inventory
-                event.getClickedInventory().setItem(27, toggleAIItem);
-            }
-
-            // Cancel the event to prevent the player from picking up the special item
+            handleStaticModeToggle(villager, player, inv);
             event.setCancelled(true);
-            plugin.SendMessage((Player) event.getWhoClicked(), villager.isInvulnerable() + "");
         }
-
 
         if (event.getSlot() == 28 && clickedItem != null) {
-            // Get the villager associated with this inventory
-            Villager villager = inventoryMap.get(event.getClickedInventory());
-
-            // Get the current profession of the villager
-            Villager.Profession currentProfession = villager.getProfession();
-
-            // Get the next profession
-            Villager.Profession[] professions = Villager.Profession.values();
-            int currentIndex = currentProfession.ordinal();
-            int nextIndex = (currentIndex + 1) % professions.length;
-            Villager.Profession nextProfession = professions[nextIndex];
-
-            //Skip the NONE and NITWIT professions
-            if (nextProfession == Villager.Profession.NONE || nextProfession == Villager.Profession.NITWIT) {
-                nextIndex = (nextIndex + 1) % professions.length;
-                nextProfession = professions[nextIndex];
-            }
-
-            plugin.getLogger().info("Current profession: " + currentProfession);
-            plugin.getLogger().info("Next profession: " + nextProfession);
-            // Set the new profession for the villager
-            villager.setProfession(nextProfession);
-
-            plugin.getLogger().info("Profession after change: " + villager.getProfession());
-
-            ItemStack changeProfessionItem = event.getClickedInventory().getItem(28);
-            ItemMeta meta = changeProfessionItem.getItemMeta();
-            String professionName = nextProfession.name();
-            meta.displayName(Component.text("(" + professionName + ")"));
-            changeProfessionItem.setItemMeta(meta);
-
-            // Cancel the event to prevent the player from picking up the change profession item
+            handleProfessionChange(villager, player, inv);
             event.setCancelled(true);
         }
+    }
+
+    private void handleStaticModeToggle(Villager villager, Player player, Inventory inv) {
+        if (staticMap.get(villager) != null && staticMap.get(villager)){
+            deactivateStaticMode(villager, player);
+        } else {
+            activateStaticMode(villager, player);
+        }
+
+        if (staticMap.get(villager)){
+            updateStaticModeDisplayItem(inv, Material.REDSTONE_TORCH, "Static Mode: False");
+        } else {
+            updateStaticModeDisplayItem(inv, Material.SOUL_TORCH, "Static Mode: True");
+        }
+    }
+
+    private void handleProfessionChange(Villager villager, Player player, Inventory inv) {
+        Villager.Profession currentProfession = villager.getProfession();
+        Villager.Profession nextProfession = getNextProfession(currentProfession);
+
+        villager.setProfession(nextProfession);
+        updateProfessionDisplayItem(inv, nextProfession);
+    }
+
+    void activateStaticMode(Villager villager, Player player) {
+        plugin.SendMessage(player, "Static Mode Activated");
+        staticMap.put(villager, true);
+        villager.setInvulnerable(true);
+        villager.setAware(false);
+        villager.setVelocity(new Vector(0.0, 0.0, 0.0));
+        Location currentLocation = villager.getLocation();
+        Location centeredLocation = new Location(
+                currentLocation.getWorld(),
+                Math.floor(currentLocation.getX()) + 0.5,
+                currentLocation.getY(),
+                Math.floor(currentLocation.getZ()) + 0.5
+        );
+        villager.teleportAsync(centeredLocation);
+        if (villager.getProfession() == Villager.Profession.NONE || villager.getProfession() == Villager.Profession.NITWIT){
+            villager.setProfession(Villager.Profession.ARMORER);
+        }
+    }
+
+    void deactivateStaticMode(Villager villager, Player player) {
+        plugin.SendMessage(player, "Static Mode Deactivated");
+        staticMap.remove(villager);
+        villager.setInvulnerable(false);
+        plugin.SendMessage(player, villager.isInvulnerable() + "");
+    }
+
+    private Villager.Profession getNextProfession(Villager.Profession currentProfession) {
+        Villager.Profession[] professions = Villager.Profession.values();
+        int currentIndex = currentProfession.ordinal();
+        int nextIndex = (currentIndex + 1) % professions.length;
+        Villager.Profession nextProfession = professions[nextIndex];
+
+        if (nextProfession == Villager.Profession.NONE || nextProfession == Villager.Profession.NITWIT) {
+            nextIndex = (nextIndex + 1) % professions.length;
+            nextProfession = professions[nextIndex];
+        }
+
+        return nextProfession;
+    }
+
+    private void updateProfessionDisplayItem(Inventory inv, Villager.Profession nextProfession) {
+
+        ItemStack changeProfessionItem = inv.getItem(28);
+        ItemMeta meta = changeProfessionItem.getItemMeta();
+        String professionName = nextProfession.name();
+        meta.displayName(Component.text("(" + professionName + ")"));
+        changeProfessionItem.setItemMeta(meta);
+    }
+
+    private void updateStaticModeDisplayItem(Inventory inv, Material material, String displayName) {
+        ItemStack toggleAIItem = new ItemStack(material);
+        ItemMeta meta = toggleAIItem.getItemMeta();
+        meta.displayName(Component.text(displayName));
+        toggleAIItem.setItemMeta(meta);
+        inv.setItem(27, toggleAIItem);
     }
 
     @EventHandler

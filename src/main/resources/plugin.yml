@@ -6,7 +6,24 @@ author: Yusaki
 description: Lets you edit villager trades.
 folia-supported: true
 
+commands:
+  vte:
+    description: General command for VillagerTradeEdit
+    usage: /vte <args>
+    permission: villagertradeedit.command
+    aliases:
+    - villagertradeedit
+    - villagertrade
+    - vtrade
+    - vedit
+
 permissions:
   villagertradeedit.open:
     description: Allows opening of the villager trade editor
+    default: op
+  villagertradeedit.command:
+    description: Allows usage of the general command
+    default: op
+  villagertradeedit.command.summon:
+    description: Allows summoning static villagers
     default: op
