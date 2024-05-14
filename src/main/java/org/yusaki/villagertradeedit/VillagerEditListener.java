@@ -2,7 +2,6 @@ package org.yusaki.villagertradeedit;
 
 import com.destroystokyo.paper.event.entity.EntityPathfindEvent;
 import com.tcoded.folialib.FoliaLib;
-import io.papermc.paper.threadedregions.scheduler.AsyncScheduler;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -12,14 +11,12 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
 import org.bukkit.event.EventHandler;
-import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.VillagerCareerChangeEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.inventory.Inventory;
@@ -28,9 +25,9 @@ import org.bukkit.inventory.MerchantRecipe;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.util.Vector;
 import org.bukkit.util.io.BukkitObjectInputStream;
 import org.bukkit.util.io.BukkitObjectOutputStream;
-import org.bukkit.util.Vector;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -63,8 +60,6 @@ public class VillagerEditListener implements Listener {
     }
 
 
-
-
     /**
      * The onChunkLoad method is an event handler method that is called when a chunk is loaded in the world.
      * It iterates through all entities in the loaded chunk and checks if they are instances of Villager.
@@ -94,6 +89,7 @@ public class VillagerEditListener implements Listener {
             }
         }
     }
+
 
     /**
      * The storeVillagerData method stores the data of a Villager entity in its persistent data container.
@@ -235,7 +231,7 @@ public class VillagerEditListener implements Listener {
         // Editing Mode: Make villager static at that moment
 
 
-        Inventory inv = Bukkit.createInventory(null,9*4, Component.text("Villager Trade Edit"));
+        Inventory inv = Bukkit.createInventory(null, 9 * 4, Component.text("Villager Trade Edit"));
 
         // Get the villager's trades
         List<MerchantRecipe> recipes = villager.getRecipes();
@@ -270,7 +266,7 @@ public class VillagerEditListener implements Listener {
         ItemMeta meta = toggleAIItem.getItemMeta();
         meta.displayName(Component.text("Static Mode: False"));
 
-        if (staticMap.get(villager) != null && staticMap.get(villager)){
+        if (staticMap.get(villager) != null && staticMap.get(villager)) {
             toggleAIItem = new ItemStack(Material.SOUL_TORCH);
             meta.displayName(Component.text("Static Mode: True"));
         }
@@ -348,8 +344,8 @@ public class VillagerEditListener implements Listener {
      * It updates the display item in the inventory to reflect the new static mode status.
      *
      * @param villager The Villager entity whose static mode is to be toggled.
-     * @param player The Player who toggled the static mode.
-     * @param inv The Inventory associated with the Villager entity.
+     * @param player   The Player who toggled the static mode.
+     * @param inv      The Inventory associated with the Villager entity.
      */
     private void handleStaticModeToggle(Villager villager, Player player, Inventory inv) {
         Boolean isStatic = staticMap.get(villager);
@@ -357,13 +353,13 @@ public class VillagerEditListener implements Listener {
             // Handle the case where the villager is not in the map, for example by setting isStatic to false
             isStatic = false;
         }
-        if (isStatic){
+        if (isStatic) {
             deactivateStaticMode(villager, player);
         } else {
             activateStaticMode(villager, player);
         }
 
-        if (isStatic){
+        if (isStatic) {
             updateStaticModeDisplayItem(inv, Material.REDSTONE_TORCH, "Static Mode: False");
         } else {
             updateStaticModeDisplayItem(inv, Material.SOUL_TORCH, "Static Mode: True");
@@ -375,8 +371,8 @@ public class VillagerEditListener implements Listener {
      * It updates the display item in the inventory to reflect the new profession.
      *
      * @param villager The Villager entity whose profession is to be changed.
-     * @param player The Player who changed the profession.
-     * @param inv The Inventory associated with the Villager entity.
+     * @param player   The Player who changed the profession.
+     * @param inv      The Inventory associated with the Villager entity.
      */
     private void handleProfessionChange(Villager villager, Player player, Inventory inv) {
         Villager.Profession currentProfession = villager.getProfession();
@@ -390,7 +386,7 @@ public class VillagerEditListener implements Listener {
      * Activates static mode for a Villager entity.
      *
      * @param villager The Villager entity to activate static mode for.
-     * @param player The Player who triggered the activation.
+     * @param player   The Player who triggered the activation.
      */
     void activateStaticMode(Villager villager, Player player) {
         plugin.logDebugPlayer(player, "Static Mode Activated");
@@ -406,7 +402,7 @@ public class VillagerEditListener implements Listener {
                 Math.floor(currentLocation.getZ()) + 0.5
         );
         villager.teleportAsync(centeredLocation);
-        if (villager.getProfession() == Villager.Profession.NONE || villager.getProfession() == Villager.Profession.NITWIT){
+        if (villager.getProfession() == Villager.Profession.NONE || villager.getProfession() == Villager.Profession.NITWIT) {
             villager.setProfession(Villager.Profession.ARMORER);
         }
     }
@@ -415,7 +411,7 @@ public class VillagerEditListener implements Listener {
      * Deactivates the static mode of a Villager entity.
      *
      * @param villager The Villager entity whose static mode is to be deactivated.
-     * @param player The Player who is deactivating the static mode.
+     * @param player   The Player who is deactivating the static mode.
      */
     void deactivateStaticMode(Villager villager, Player player) {
         plugin.logDebugPlayer(player, "Static Mode Deactivated");
@@ -446,7 +442,7 @@ public class VillagerEditListener implements Listener {
     /**
      * Updates the display item in the inventory to reflect the new profession.
      *
-     * @param inv The Inventory object associated with the Villager entity.
+     * @param inv            The Inventory object associated with the Villager entity.
      * @param nextProfession The Profession object representing the next profession for the Villager entity.
      */
     private void updateProfessionDisplayItem(Inventory inv, Villager.Profession nextProfession) {
@@ -461,8 +457,8 @@ public class VillagerEditListener implements Listener {
     /**
      * Updates the display item in the inventory to reflect the given static mode.
      *
-     * @param inv The inventory where the display item is updated.
-     * @param material The material of the display item.
+     * @param inv         The inventory where the display item is updated.
+     * @param material    The material of the display item.
      * @param displayName The display name of the item.
      */
     private void updateStaticModeDisplayItem(Inventory inv, Material material, String displayName) {

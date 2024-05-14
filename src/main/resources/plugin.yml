@@ -5,6 +5,8 @@ api-version: '1.20'
 author: Yusaki
 description: Lets you edit villager trades.
 folia-supported: true
+depend:
+  - YskLib
 
 commands:
   vte:
@@ -12,10 +14,10 @@ commands:
     usage: /vte <args>
     permission: villagertradeedit.command
     aliases:
-    - villagertradeedit
-    - villagertrade
-    - vtrade
-    - vedit
+      - villagertradeedit
+      - villagertrade
+      - vtrade
+      - vedit
 
 permissions:
   villagertradeedit.open:

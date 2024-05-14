@@ -2,7 +2,7 @@
 # debug value can be true or false. When debug is true, the application prints more in detail log messages
 debug: false
 # Version number of the application do not change this
-version: 2.0S
+version: 2.0
 
 enabled-worlds:
   - world1

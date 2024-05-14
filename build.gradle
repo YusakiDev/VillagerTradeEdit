@@ -24,6 +24,7 @@ repositories {
 }
 
 dependencies {
+    compileOnly files('libs/YskLib.jar')
     implementation "com.tcoded:FoliaLib:0.3.1"
     compileOnly "io.papermc.paper:paper-api:1.20.4-R0.1-SNAPSHOT"
 
@@ -31,7 +32,14 @@ dependencies {
 
 shadowJar {
     relocate 'com.tcoded.folialib', 'org.yusaki.lib.folialib'
+    destinationDirectory = file("C:\\Users\\ASUS\\Desktop\\New folder (6)\\plugins\\")
 }
+
+tasks.register('copyJar', Copy) {
+    from file("D:\\OtherGit\\VillagerTradeEdit\\libs\\YskLib.jar")
+    into file("C:\\Users\\ASUS\\Desktop\\New folder (6)\\plugins\\")
+}
+
 
 def targetJavaVersion = 17
 java {
@@ -42,6 +50,7 @@ java {
         toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
     }
 }
+
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'

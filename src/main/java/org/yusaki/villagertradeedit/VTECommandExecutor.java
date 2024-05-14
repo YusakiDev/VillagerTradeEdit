@@ -3,7 +3,10 @@ package org.yusaki.villagertradeedit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
-import org.bukkit.command.*;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
@@ -44,7 +47,7 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
                 plugin.sendMessage(player, "noPermission");
                 return true;
             }
-            if (!plugin.canExecuteInWorld(player.getWorld())) {
+            if (!plugin.yskLib.canExecuteInWorld(plugin, player.getWorld())) {
                 plugin.sendMessage(player, "disabledWorld");
                 return true;
             }
@@ -72,7 +75,7 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
                 plugin.sendMessage(player, "noPermission");
                 return true;
             }
-            plugin.reloadPlugin();
+            plugin.reloadConfig();
             plugin.sendMessage(player, "configReloaded");
             return true;
         }
