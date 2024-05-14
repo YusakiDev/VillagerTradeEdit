@@ -36,6 +36,11 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        if (args.length == 0) {
+            player.sendMessage(ChatColor.RED + "Usage: /vte summon");
+            return true;
+        }
+
         if (args.length > 0 && "summon".equalsIgnoreCase(args[0])) {
             if (!player.hasPermission("villagertradeedit.command.summon")) {
                 player.sendMessage(ChatColor.RED + "You do not have permission to use this subcommand.");
@@ -50,18 +55,24 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
                     spawnLocation.setX(Math.floor(spawnLocation.getX()) + 0.5);
                     spawnLocation.setZ(Math.floor(spawnLocation.getZ()) + 0.5);
 
-                    // Check if the distance is too far
-                    if (player.getLocation().distance(spawnLocation) > 5) {
-                        player.sendMessage(ChatColor.RED + "The distance is too far to summon a villager.");
-                        return true;
-                    }
-
                     Villager villager = (Villager) player.getWorld().spawnEntity(spawnLocation, EntityType.VILLAGER);
                     villagerEditListener.activateStaticMode(villager, player);
                     villager.teleportAsync(spawnLocation);
                     return true;
                 }
             }
+            player.sendMessage(ChatColor.RED + "No block in sight.");
+            return true;
+        }
+
+        if (args.length > 0 && "reload".equalsIgnoreCase(args[0])) {
+            if (!player.hasPermission("villagertradeedit.command.reload")) {
+                player.sendMessage(ChatColor.RED + "You do not have permission to use this subcommand.");
+                return true;
+            }
+            plugin.reloadConfig();
+            player.sendMessage(ChatColor.GREEN + "Configuration reloaded.");
+            return true;
         }
 
         return false;
@@ -72,6 +83,7 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
         if (sender instanceof Player && args.length == 1) {
             List<String> completions = new ArrayList<>();
             completions.add("summon");
+            completions.add("reload");
             return completions;
         }
         return null;

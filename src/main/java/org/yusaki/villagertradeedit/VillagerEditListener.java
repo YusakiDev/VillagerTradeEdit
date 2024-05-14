@@ -32,20 +32,41 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.*;
 
+/**
+ * A class representing a listener for villager trading events in the VillagerTradeEdit plugin.
+ * Inherits from the Object and Listener classes.
+ */
 public class VillagerEditListener implements Listener {
 
-    VillagerTradeEdit plugin;
+    static VillagerTradeEdit plugin;
     private final Map<Inventory, Villager> inventoryMap = new HashMap<>();
     private final Map<Villager, Boolean> staticMap = new HashMap<>();
     private final Set<UUID> retrievedVillagers = new HashSet<>();
 
+    private final NamespacedKey STATIC_KEY;
+    private final NamespacedKey PROFESSION_KEY;
+    private final NamespacedKey TRADES_KEY;
+
+
 
     public VillagerEditListener(VillagerTradeEdit plugin) {
-        this.plugin = plugin;
+        VillagerEditListener.plugin = plugin;
+        STATIC_KEY = new NamespacedKey(plugin, "static");
+        PROFESSION_KEY = new NamespacedKey(plugin, "profession");
+        TRADES_KEY = new NamespacedKey(plugin, "trades");
     }
 
 
 
+
+    /**
+     * The onChunkLoad method is an event handler method that is called when a chunk is loaded in the world.
+     * It iterates through all entities in the loaded chunk and checks if they are instances of Villager.
+     * If a Villager entity has persistent data stored with a specific key ,and it has not been retrieved
+     * before, it retrieves the stored data and adds the villager's UUID to the retrievedVillagers set.
+     *
+     * @param event The ChunkLoadEvent object representing the event that occurred.
+     */
     @EventHandler
     public void onChunkLoad(ChunkLoadEvent event) {
         for (Entity entity : event.getChunk().getEntities()) {
@@ -57,7 +78,7 @@ public class VillagerEditListener implements Listener {
                 NamespacedKey staticKey = new NamespacedKey(plugin, "static");
 
                 if (dataContainer.has(staticKey, PersistentDataType.STRING) && !retrievedVillagers.contains(villager.getUniqueId())) {
-                    plugin.getLogger().info("Found villager with data in loaded chunk, attempting to retrieve data");
+                    plugin.logDebug("Found villager with data in loaded chunk, attempting to retrieve data");
                     retrieveVillagerData(villager);
                     retrievedVillagers.add(villager.getUniqueId());
                 }
@@ -65,36 +86,41 @@ public class VillagerEditListener implements Listener {
         }
     }
 
+    /**
+     * The storeVillagerData method stores the data of a Villager entity in its persistent data container.
+     * It stores the static status of the villager, its profession, and its trades in the data container.
+     *
+     * @param villager The Villager entity whose data is to be stored.
+     */
     public void storeVillagerData(Villager villager) {
-        plugin.getLogger().info("Storing data for villager " + villager.getUniqueId());
+        plugin.logDebug("Storing data for villager " + villager.getUniqueId());
 
         PersistentDataContainer dataContainer = villager.getPersistentDataContainer();
 
-        NamespacedKey staticKey = new NamespacedKey(plugin, "static");
-        dataContainer.set(staticKey, PersistentDataType.STRING, staticMap.get(villager).toString());
-
-        NamespacedKey professionKey = new NamespacedKey(plugin, "profession");
-        dataContainer.set(professionKey, PersistentDataType.STRING, villager.getProfession().name());
-
-        NamespacedKey tradesKey = new NamespacedKey(plugin, "trades");
+        dataContainer.set(STATIC_KEY, PersistentDataType.STRING, staticMap.get(villager).toString());
+        dataContainer.set(PROFESSION_KEY, PersistentDataType.STRING, villager.getProfession().name());
         String tradesData = serializeMerchantRecipes(villager.getRecipes());
-        dataContainer.set(tradesKey, PersistentDataType.STRING, tradesData);
+        dataContainer.set(TRADES_KEY, PersistentDataType.STRING, tradesData);
 
-        plugin.getLogger().info("Stored data for villager " + villager.getUniqueId());
+        plugin.logDebug("Stored data for villager " + villager.getUniqueId());
     }
 
+    /**
+     * The retrieveVillagerData method retrieves the data of a Villager entity from its persistent data container.
+     * It retrieves the static status of the villager, its profession, and its trades from the data container.
+     *
+     * @param villager The Villager entity whose data is to be retrieved.
+     */
     public void retrieveVillagerData(Villager villager) {
-        plugin.getLogger().info("Retrieving data for villager " + villager.getUniqueId());
+        plugin.logDebug("Retrieving data for villager " + villager.getUniqueId());
 
         PersistentDataContainer dataContainer = villager.getPersistentDataContainer();
 
-        NamespacedKey staticKey = new NamespacedKey(plugin, "static");
-        String staticValue = dataContainer.get(staticKey, PersistentDataType.STRING);
+        String staticValue = dataContainer.get(STATIC_KEY, PersistentDataType.STRING);
         staticMap.put(villager, Boolean.valueOf(staticValue));
         villager.setCollidable(!Boolean.parseBoolean(staticValue));
 
-        NamespacedKey professionKey = new NamespacedKey(plugin, "profession");
-        String professionName = dataContainer.get(professionKey, PersistentDataType.STRING);
+        String professionName = dataContainer.get(PROFESSION_KEY, PersistentDataType.STRING);
         if (professionName != null) {
             villager.setProfession(Villager.Profession.valueOf(professionName));
         } else {
@@ -102,12 +128,18 @@ public class VillagerEditListener implements Listener {
             villager.setProfession(Villager.Profession.NONE);
         }
 
-        NamespacedKey tradesKey = new NamespacedKey(plugin, "trades");
-        String tradesData = dataContainer.get(tradesKey, PersistentDataType.STRING);
+        String tradesData = dataContainer.get(TRADES_KEY, PersistentDataType.STRING);
         villager.setRecipes(deserializeMerchantRecipes(tradesData));
 
-        plugin.getLogger().info("Retrieved data for villager " + villager.getUniqueId());
+        plugin.logDebug("Retrieved data for villager " + villager.getUniqueId());
     }
+
+    /**
+     * The serializeMerchantRecipes method serializes a list of MerchantRecipe objects into a Base64-encoded string.
+     *
+     * @param recipes The list of MerchantRecipe objects to be serialized.
+     * @return A Base64-encoded string representing the serialized list of MerchantRecipe objects.
+     */
     private String serializeMerchantRecipes(List<MerchantRecipe> recipes) {
         try {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -130,6 +162,12 @@ public class VillagerEditListener implements Listener {
         }
     }
 
+    /**
+     * The deserializeMerchantRecipes method deserializes a Base64-encoded string into a list of MerchantRecipe objects.
+     *
+     * @param data The Base64-encoded string representing the serialized list of MerchantRecipe objects.
+     * @return A list of MerchantRecipe objects deserialized from the Base64-encoded string.
+     */
     private List<MerchantRecipe> deserializeMerchantRecipes(String data) {
         if (data == null) {
             // Return an empty list if data is null
@@ -157,6 +195,13 @@ public class VillagerEditListener implements Listener {
         }
     }
 
+    /**
+     * The onPlayerInteractEntity method is an event handler method that is called when a player interacts with an entity.
+     * It checks if the entity is a Villager and if the player is sneaking. If both conditions are met, it opens an inventory
+     * for the player to edit the trades of the Villager. The inventory displays the input items and output items of the trades.
+     *
+     * @param event The PlayerInteractEntityEvent object representing the event that occurred.
+     */
     @EventHandler
     public void onPlayerInteractEntity(PlayerInteractEntityEvent event) {
         if (!(event.getRightClicked() instanceof Villager villager)) {
@@ -169,7 +214,7 @@ public class VillagerEditListener implements Listener {
         }
 
         if (!player.hasPermission("villagertradeedit.open")) {
-            plugin.SendMessage(player, "You do not have permission to edit villager trades.");
+            plugin.sendMessage(player, "You do not have permission to edit villager trades.");
             return;
         }
 
@@ -233,6 +278,14 @@ public class VillagerEditListener implements Listener {
         player.openInventory(inv);
     }
 
+    /**
+     * The onInventoryClick method is an event handler method that is called when a player clicks an item in an inventory.
+     * It checks if the clicked inventory is associated with a Villager and handles the actions based on the clicked item.
+     * If the player clicks on the static mode toggle item, it toggles the static mode of the Villager.
+     * If the player clicks on the profession change item, it changes the profession of the Villager.
+     *
+     * @param event The InventoryClickEvent object representing the event that occurred.
+     */
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         if (!inventoryMap.containsKey(event.getClickedInventory())) {
@@ -259,20 +312,42 @@ public class VillagerEditListener implements Listener {
         }
     }
 
+    /**
+     * The handleStaticModeToggle method toggles the static mode of a Villager entity.
+     * If the Villager is in static mode, it deactivates the static mode and vice versa.
+     * It updates the display item in the inventory to reflect the new static mode status.
+     *
+     * @param villager The Villager entity whose static mode is to be toggled.
+     * @param player The Player who toggled the static mode.
+     * @param inv The Inventory associated with the Villager entity.
+     */
     private void handleStaticModeToggle(Villager villager, Player player, Inventory inv) {
-        if (staticMap.get(villager) != null && staticMap.get(villager)){
+        Boolean isStatic = staticMap.get(villager);
+        if (isStatic == null) {
+            // Handle the case where the villager is not in the map, for example by setting isStatic to false
+            isStatic = false;
+        }
+        if (isStatic){
             deactivateStaticMode(villager, player);
         } else {
             activateStaticMode(villager, player);
         }
 
-        if (staticMap.get(villager)){
+        if (isStatic){
             updateStaticModeDisplayItem(inv, Material.REDSTONE_TORCH, "Static Mode: False");
         } else {
             updateStaticModeDisplayItem(inv, Material.SOUL_TORCH, "Static Mode: True");
         }
     }
 
+    /**
+     * The handleProfessionChange method changes the profession of a Villager entity to the next profession in the list.
+     * It updates the display item in the inventory to reflect the new profession.
+     *
+     * @param villager The Villager entity whose profession is to be changed.
+     * @param player The Player who changed the profession.
+     * @param inv The Inventory associated with the Villager entity.
+     */
     private void handleProfessionChange(Villager villager, Player player, Inventory inv) {
         Villager.Profession currentProfession = villager.getProfession();
         Villager.Profession nextProfession = getNextProfession(currentProfession);
@@ -281,8 +356,14 @@ public class VillagerEditListener implements Listener {
         updateProfessionDisplayItem(inv, nextProfession);
     }
 
+    /**
+     * Activates static mode for a Villager entity.
+     *
+     * @param villager The Villager entity to activate static mode for.
+     * @param player The Player who triggered the activation.
+     */
     void activateStaticMode(Villager villager, Player player) {
-        plugin.SendMessage(player, "Static Mode Activated");
+        plugin.logDebugPlayer(player, "Static Mode Activated");
         staticMap.put(villager, true);
         villager.setInvulnerable(true);
         villager.setAware(false);
@@ -300,13 +381,24 @@ public class VillagerEditListener implements Listener {
         }
     }
 
+    /**
+     * Deactivates the static mode of a Villager entity.
+     *
+     * @param villager The Villager entity whose static mode is to be deactivated.
+     * @param player The Player who is deactivating the static mode.
+     */
     void deactivateStaticMode(Villager villager, Player player) {
-        plugin.SendMessage(player, "Static Mode Deactivated");
+        plugin.logDebugPlayer(player, "Static Mode Deactivated");
         staticMap.remove(villager);
         villager.setInvulnerable(false);
-        plugin.SendMessage(player, villager.isInvulnerable() + "");
     }
 
+    /**
+     * Retrieves the next profession in the list of professions for a Villager.
+     *
+     * @param currentProfession - The current profession of the Villager.
+     * @return The next profession in the list.
+     */
     private Villager.Profession getNextProfession(Villager.Profession currentProfession) {
         Villager.Profession[] professions = Villager.Profession.values();
         int currentIndex = currentProfession.ordinal();
@@ -321,6 +413,12 @@ public class VillagerEditListener implements Listener {
         return nextProfession;
     }
 
+    /**
+     * Updates the display item in the inventory to reflect the new profession.
+     *
+     * @param inv The Inventory object associated with the Villager entity.
+     * @param nextProfession The Profession object representing the next profession for the Villager entity.
+     */
     private void updateProfessionDisplayItem(Inventory inv, Villager.Profession nextProfession) {
 
         ItemStack changeProfessionItem = inv.getItem(28);
@@ -330,6 +428,13 @@ public class VillagerEditListener implements Listener {
         changeProfessionItem.setItemMeta(meta);
     }
 
+    /**
+     * Updates the display item in the inventory to reflect the given static mode.
+     *
+     * @param inv The inventory where the display item is updated.
+     * @param material The material of the display item.
+     * @param displayName The display name of the item.
+     */
     private void updateStaticModeDisplayItem(Inventory inv, Material material, String displayName) {
         ItemStack toggleAIItem = new ItemStack(material);
         ItemMeta meta = toggleAIItem.getItemMeta();
@@ -338,6 +443,13 @@ public class VillagerEditListener implements Listener {
         inv.setItem(27, toggleAIItem);
     }
 
+    /**
+     * The onEntityPathFind method is an event handler method that is called when an entity tries to find a path to a target location.
+     * It checks if the entity is a Villager, If it is not, the method returns.
+     * If the entity is a Villager and its static mode is set to true, the method cancels the pathfinding event.
+     *
+     * @param event The EntityPathfindEvent object representing the event that occurred.
+     */
     @EventHandler
     public void onEntityPathFind(EntityPathfindEvent event) {
         if (!(event.getEntity() instanceof Villager villager)) {
@@ -349,6 +461,13 @@ public class VillagerEditListener implements Listener {
         }
     }
 
+    /**
+     * The onEntityDamage method is an event handler method that is called when an entity is damaged.
+     * It checks if the damaged entity is an instance of Villager.
+     * If it is, it checks if the villager is in the static mode, and cancels the damage event if it is.
+     *
+     * @param event The EntityDamageEvent object representing the event that occurred.
+     */
     @EventHandler
     public void onEntityDamage(EntityDamageEvent event) {
         if (!(event.getEntity() instanceof Villager villager)) {
@@ -360,6 +479,12 @@ public class VillagerEditListener implements Listener {
         }
     }
 
+    /**
+     * The onVillagerCareerChange method is an event handler method that is called when a Villager's career changes.
+     * It cancels the career change event if the Villager is in the static mode.
+     *
+     * @param event The VillagerCareerChangeEvent object representing the event that occurred.
+     */
     @EventHandler
     public void onVillagerCareerChange(VillagerCareerChangeEvent event) {
 
@@ -414,10 +539,10 @@ public class VillagerEditListener implements Listener {
         if (staticMap.get(villager) != null && staticMap.get(villager)) {
             // If the villager is static, update the villager's trades and store the villager data
             villager.setRecipes(newRecipes);
-            plugin.SendMessage((Player) event.getPlayer(), "Inventory closed, storing data for villager " + villager.getUniqueId());
+            plugin.logDebugPlayer((Player) event.getPlayer(), "Inventory closed, storing data for villager " + villager.getUniqueId());
             storeVillagerData(villager);
         } else {
-            plugin.SendMessage((Player) event.getPlayer(), "Inventory closed, Villager is not static, trades not updated");
+            plugin.logDebugPlayer((Player) event.getPlayer(), "Inventory closed, Villager is not static, trades not updated");
         }
 
         // Remove the inventory from the map

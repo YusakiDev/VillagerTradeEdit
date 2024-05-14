@@ -27,3 +27,6 @@ permissions:
   villagertradeedit.command.summon:
     description: Allows summoning static villagers
     default: op
+  villagertradeedit.command.reload:
+    description: Allows reloading the plugin
+    default: op

@@ -1,0 +1,8 @@
+# This is the main configuration for the plugin
+# debug value can be true or false. When debug is true, the application prints more in detail log messages
+debug: false
+# Version number of the application do not change this
+version: 1.0
+
+messages:
+  prefix: "&7[&6VTE&7] &r"
