@@ -8,7 +8,7 @@ import org.yusaki.lib.YskLib;
 public final class VillagerTradeEdit extends SimplePlugin {
 
     private YskLib yskLib;
-    private YskLibWrapper wrapper;
+    public YskLibWrapper wrapper;
 
 
     //TODO stop villager moving if already pathfind
@@ -20,12 +20,12 @@ public final class VillagerTradeEdit extends SimplePlugin {
     public void onPluginStart() {
         saveDefaultConfig();
         yskLib = (YskLib) Bukkit.getPluginManager().getPlugin("YskLib");
-        wrapper = new YskLibWrapper(this, yskLib);
         yskLib.updateConfig(this);
+        wrapper = new YskLibWrapper(yskLib);
         getLogger().info("VillagerTradeEdit enabled!");
-        VillagerEditListener villagerEditListener = new VillagerEditListener(this, wrapper);
+        VillagerEditListener villagerEditListener = new VillagerEditListener();
         getServer().getPluginManager().registerEvents(villagerEditListener, this);
-        VTECommandExecutor vteCommandExecutor = new VTECommandExecutor(this, villagerEditListener, wrapper);
+        VTECommandExecutor vteCommandExecutor = new VTECommandExecutor(this, villagerEditListener);
         this.getCommand("vte").setExecutor(vteCommandExecutor);
         this.getCommand("vte").setTabCompleter(vteCommandExecutor);
     }
@@ -41,7 +41,7 @@ public final class VillagerTradeEdit extends SimplePlugin {
     }
 
     public static VillagerTradeEdit getInstance() {
-        return getInstance();
+        return (VillagerTradeEdit) SimplePlugin.getInstance();
     }
 
 }

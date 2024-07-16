@@ -10,8 +10,8 @@ public class YskLibWrapper {
     private final JavaPlugin plugin;
     private final YskLib yskLib;
 
-    public YskLibWrapper(JavaPlugin plugin, YskLib lib) {
-        this.plugin = plugin;
+    public YskLibWrapper(YskLib lib) {
+        this.plugin = VillagerTradeEdit.getInstance();
         this.yskLib = lib;
     }
 
@@ -30,4 +30,5 @@ public class YskLibWrapper {
     public void logDebugPlayer(Player player, String s) {
         yskLib.logDebugPlayer(plugin, player, s);
     }
+    
 }

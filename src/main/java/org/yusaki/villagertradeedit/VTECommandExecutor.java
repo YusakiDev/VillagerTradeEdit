@@ -21,9 +21,9 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
     private final YskLibWrapper wrapper;
     private final VillagerEditListener villagerEditListener;
 
-    public VTECommandExecutor(VillagerTradeEdit plugin, VillagerEditListener villagerEditListener, YskLibWrapper wrapper) {
+    public VTECommandExecutor(VillagerTradeEdit plugin, VillagerEditListener villagerEditListener) {
         this.plugin = plugin;
-        this.wrapper = wrapper;
+        this.wrapper = VillagerTradeEdit.getInstance().wrapper;
         this.villagerEditListener = villagerEditListener;
     }
 
@@ -33,7 +33,7 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
             sender.sendMessage("This command can only be run by a player.");
             return true;
         }
-        
+
 
         if (!player.hasPermission("villagertradeedit.command")) {
             wrapper.sendMessage(player, "noPermission");

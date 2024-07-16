@@ -41,7 +41,7 @@ import java.util.*;
  */
 public class VillagerEditListener implements Listener {
 
-    static VillagerTradeEdit plugin;
+    private VillagerTradeEdit plugin;
     YskLibWrapper wrapper;
     private final Map<Inventory, Villager> inventoryMap = new HashMap<>();
     private final Map<Inventory, Boolean> tradeAlteredMap = new HashMap<>();
@@ -55,9 +55,9 @@ public class VillagerEditListener implements Listener {
     private final NamespacedKey PERMISSION_KEY;
 
 
-    public VillagerEditListener(VillagerTradeEdit plugin, YskLibWrapper wrapper) {
-        VillagerEditListener.plugin = plugin;
-        this.wrapper = wrapper;
+    public VillagerEditListener() {
+        this.plugin = VillagerTradeEdit.getInstance();
+        this.wrapper = VillagerTradeEdit.getInstance().wrapper;
         STATIC_KEY = new NamespacedKey(plugin, "static");
         PROFESSION_KEY = new NamespacedKey(plugin, "profession");
         TRADES_KEY = new NamespacedKey(plugin, "trades");
@@ -261,6 +261,7 @@ public class VillagerEditListener implements Listener {
         }
 
         if (!(player.hasPermission("villagertradeedit.open") && player.isSneaking())) {
+            permissionMap.putIfAbsent(villager, "default_permission");
             if (!event.getPlayer().hasPermission(permissionMap.get(villager))) {
                 event.setCancelled(true);
                 // Optionally send a message to the player
@@ -526,9 +527,16 @@ public class VillagerEditListener implements Listener {
      * @param inv      The Inventory associated with the Villager entity.
      */
     private void handleProfessionChange(Villager villager, Player player, Inventory inv) {
+        List<MerchantRecipe> currentTrades = new ArrayList<>(villager.getRecipes());
+
+        // Step 2: Change profession (existing implementation)
         Villager.Profession currentProfession = villager.getProfession();
         Villager.Profession nextProfession = getNextProfession(currentProfession);
         villager.setProfession(nextProfession);
+
+        // Step 3: Reapply saved trades
+        villager.setRecipes(currentTrades);
+
         updateProfessionDisplayItem(inv, nextProfession);
         tradeAlteredMap.put(inv, true);
         updateSaveButtonColor(inv);
