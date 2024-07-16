@@ -1,27 +1,70 @@
-# mac files
-.DS_Store
+#################
+## IDEA
+#################
 
-# ignore vscode stuff
-.settings
-.settings/
+# User-specific stuff
+.idea/
+.idea_modules/
+*.iml
+
+# IntelliJ
+out/
+
+target/
+
+#################
+## Eclipse
+#################
+
+*.pydevproject
 .project
+.metadata
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.classpath
+.settings/
+.loadpath
+.apt_generated/
+.apt_generated_tests/
 
-# ignore other java files
-.gradle
-build/
+# Avoid ignoring Maven wrapper jar file (.jar files are usually ignored)
+!/.mvn/wrapper/maven-wrapper.jar
 
-# Compiled class file
-*.class
+# External tool builders
+.externalToolBuilders/
 
-# Log file
-*.log
+# Locally stored "Eclipse launch configurations"
+*.launch
 
-# Package Files #
-*.jar
-*.war
-*.nar
-*.ear
-*.zip
-*.tar.gz
-*.rar
+# CDT-specific
+.cproject
 
+# PDT-specific
+.buildpath
+
+# Builder
+builder.xml
+build.xml
+
+#############
+## Windows detritus
+#############
+
+# Windows image file caches
+Thumbs.db
+ehthumbs.db
+
+# Folder config file
+Desktop.ini
+
+# Recycle Bin used on file shares
+$RECYCLE.BIN/
+
+# Mac crap
+.DS_Store
+REBASE.bat

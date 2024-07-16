@@ -542,7 +542,7 @@ public class VillagerEditListener implements Listener {
         updateSaveButtonColor(inv);
         listVillagerTrades(villager, inv);
     }
-
+    
     /**
      * Activates static mode for a Villager entity.
      *
@@ -566,6 +566,7 @@ public class VillagerEditListener implements Listener {
         if (villager.getProfession() == Villager.Profession.NONE || villager.getProfession() == Villager.Profession.NITWIT) {
             villager.setProfession(Villager.Profession.ARMORER);
         }
+        villager.setRecipes(new ArrayList<>());
     }
 
     /**
@@ -578,6 +579,7 @@ public class VillagerEditListener implements Listener {
         wrapper.logDebugPlayer(player, "Static Mode Deactivated");
         staticMap.remove(villager);
         villager.setInvulnerable(false);
+        villager.setAware(true);
     }
 
     /**
