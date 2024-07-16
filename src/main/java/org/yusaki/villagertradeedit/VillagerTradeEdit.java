@@ -1,14 +1,15 @@
 package org.yusaki.villagertradeedit;
 
 import org.bukkit.Bukkit;
-import org.bukkit.plugin.java.JavaPlugin;
+import org.mineacademy.fo.plugin.SimplePlugin;
 import org.yusaki.lib.YskLib;
 
 
-public final class VillagerTradeEdit extends JavaPlugin {
+public final class VillagerTradeEdit extends SimplePlugin {
 
     private YskLib yskLib;
     private YskLibWrapper wrapper;
+
 
     //TODO stop villager moving if already pathfind
     //TODO add villager rotate to player
@@ -16,7 +17,7 @@ public final class VillagerTradeEdit extends JavaPlugin {
     //TODO Cancel Name change event
     //TODO Save Button Instead of Closing button
     @Override
-    public void onEnable() {
+    public void onPluginStart() {
         saveDefaultConfig();
         yskLib = (YskLib) Bukkit.getPluginManager().getPlugin("YskLib");
         wrapper = new YskLibWrapper(this, yskLib);
@@ -30,9 +31,17 @@ public final class VillagerTradeEdit extends JavaPlugin {
     }
 
     @Override
-    public void onDisable() {
+    public void onPluginReload() {
+        yskLib.updateConfig(this);
+    }
+
+    @Override
+    public void onPluginStop() {
         getLogger().info("VillagerTradeEdit disabled!");
     }
 
+    public static VillagerTradeEdit getInstance() {
+        return getInstance();
+    }
 
 }

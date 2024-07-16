@@ -1,7 +1,6 @@
 package org.yusaki.villagertradeedit;
 
 import com.destroystokyo.paper.event.entity.EntityPathfindEvent;
-import com.tcoded.folialib.FoliaLib;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -43,7 +42,6 @@ import java.util.*;
 public class VillagerEditListener implements Listener {
 
     static VillagerTradeEdit plugin;
-    FoliaLib foliaLib;
     YskLibWrapper wrapper;
     private final Map<Inventory, Villager> inventoryMap = new HashMap<>();
     private final Map<Inventory, Boolean> tradeAlteredMap = new HashMap<>();
@@ -59,7 +57,6 @@ public class VillagerEditListener implements Listener {
 
     public VillagerEditListener(VillagerTradeEdit plugin, YskLibWrapper wrapper) {
         VillagerEditListener.plugin = plugin;
-        foliaLib = new FoliaLib(plugin);
         this.wrapper = wrapper;
         STATIC_KEY = new NamespacedKey(plugin, "static");
         PROFESSION_KEY = new NamespacedKey(plugin, "profession");
@@ -476,9 +473,7 @@ public class VillagerEditListener implements Listener {
                     HandlerList.unregisterAll(this);
                     event.setCancelled(true);
                     wrapper.sendMessage(player, "Permission set to " + permission);
-                    foliaLib.getImpl().runNextTick((C) -> {
-                        player.openInventory(inv);
-                    });
+                    player.openInventory(inv);
                 }
             }
         }, plugin);

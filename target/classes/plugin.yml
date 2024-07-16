@@ -1,0 +1,34 @@
+name: VillagerTradeEdit
+version: '1.0.0'
+main: org.yusaki.villagertradeedit.VillagerTradeEdit
+api-version: '1.20'
+author: Yusaki
+description: Lets you edit villager trades.
+folia-supported: true
+depend:
+  - YskLib
+
+commands:
+  vte:
+    description: General command for VillagerTradeEdit
+    usage: /vte <args>
+    permission: villagertradeedit.command
+    aliases:
+      - villagertradeedit
+      - villagertrade
+      - vtrade
+      - vedit
+
+permissions:
+  villagertradeedit.open:
+    description: Allows opening of the villager trade editor
+    default: op
+  villagertradeedit.command:
+    description: Allows usage of the general command
+    default: op
+  villagertradeedit.command.summon:
+    description: Allows summoning static villagers
+    default: op
+  villagertradeedit.command.reload:
+    description: Allows reloading the plugin
+    default: op

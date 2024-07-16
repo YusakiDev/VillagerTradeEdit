@@ -33,6 +33,7 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
             sender.sendMessage("This command can only be run by a player.");
             return true;
         }
+        
 
         if (!player.hasPermission("villagertradeedit.command")) {
             wrapper.sendMessage(player, "noPermission");
