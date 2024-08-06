@@ -19,6 +19,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -29,6 +30,7 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.Vector;
 import org.bukkit.util.io.BukkitObjectInputStream;
 import org.bukkit.util.io.BukkitObjectOutputStream;
+import org.mineacademy.fo.Common;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -319,7 +321,7 @@ public class VillagerEditListener implements Listener {
 
         ItemStack setNameItem = new ItemStack(Material.NAME_TAG);
         ItemMeta setNameMeta = setNameItem.getItemMeta();
-        setNameMeta.displayName(Component.text("Name: " + villager.customName()));
+        setNameMeta.displayName(Component.text("Name: " + villager.getCustomName()));
         setNameItem.setItemMeta(setNameMeta);
         inv.setItem(29, setNameItem);
 
@@ -328,6 +330,7 @@ public class VillagerEditListener implements Listener {
         setPermissionMeta.displayName(Component.text("Permission: " + permissionMap.get(villager)));
         setPermissionItem.setItemMeta(setPermissionMeta);
         inv.setItem(30, setPermissionItem);
+        updatePermissionDisplayItem(inv, permissionMap.get(villager));
 
         updateSaveButtonColor(inv);
 
@@ -336,6 +339,17 @@ public class VillagerEditListener implements Listener {
 
         // Open the inventory for the player
         player.openInventory(inv);
+    }
+
+    private void updatePermissionDisplayItem(Inventory inv, String permission) {
+        ItemStack setPermissionItem = inv.getItem(30);
+        if (setPermissionItem == null) {
+            setPermissionItem = new ItemStack(Material.PAPER);
+        }
+        ItemMeta setPermissionMeta = setPermissionItem.getItemMeta();
+        setPermissionMeta.displayName(Component.text("Permission: " + permission));
+        setPermissionItem.setItemMeta(setPermissionMeta);
+        inv.setItem(30, setPermissionItem);
     }
 
     /**
@@ -474,15 +488,42 @@ public class VillagerEditListener implements Listener {
                     HandlerList.unregisterAll(this);
                     event.setCancelled(true);
                     wrapper.sendMessage(player, "Permission set to " + permission);
-                    player.openInventory(inv);
+                    Common.runAsync(() -> {
+                        player.openInventory(inv);
+                    });
+
                 }
             }
         }, plugin);
     }
 
     private void handleSetName(Villager villager, Player player, Inventory inv) {
-        wrapper.sendMessage(player, "In development");
-        updateNameDisplayItem(inv, "Name" + villager.customName());
+        player.closeInventory();
+        wrapper.sendMessage(player, "Enter the new name for the villager (or 'cancel' to cancel):");
+        Bukkit.getPluginManager().registerEvents(new Listener() {
+            @EventHandler
+            public void onPlayerChat(AsyncPlayerChatEvent event) {
+                if (event.getPlayer().equals(player)) {
+                    event.setCancelled(true);
+                    String newName = event.getMessage();
+                    if (newName.equalsIgnoreCase("cancel")) {
+                        wrapper.sendMessage(player, "Name change cancelled.");
+                    } else {
+                        villager.getScheduler().run(plugin, task -> {
+                            villager.customName(Component.text(newName));
+                            villager.setCustomNameVisible(true);
+                            wrapper.sendMessage(player, "Villager name set to: " + newName);
+                            updateNameDisplayItem(inv, newName);
+                        }, null);
+                    }
+                    HandlerList.unregisterAll(this);
+                    Common.runAsync(() -> {
+                        player.openInventory(inv);
+                    });
+
+                }
+            }
+        }, plugin);
     }
 
     /**
@@ -542,7 +583,7 @@ public class VillagerEditListener implements Listener {
         updateSaveButtonColor(inv);
         listVillagerTrades(villager, inv);
     }
-    
+
     /**
      * Activates static mode for a Villager entity.
      *
@@ -566,6 +607,7 @@ public class VillagerEditListener implements Listener {
         if (villager.getProfession() == Villager.Profession.NONE || villager.getProfession() == Villager.Profession.NITWIT) {
             villager.setProfession(Villager.Profession.ARMORER);
         }
+        updatePermissionDisplayItem(villager.getInventory(), permissionMap.get(villager));
         villager.setRecipes(new ArrayList<>());
     }
 
@@ -580,6 +622,8 @@ public class VillagerEditListener implements Listener {
         staticMap.remove(villager);
         villager.setInvulnerable(false);
         villager.setAware(true);
+        villager.setCustomName(null);
+        villager.setCustomNameVisible(false);
     }
 
     /**
@@ -635,7 +679,7 @@ public class VillagerEditListener implements Listener {
     private void updateNameDisplayItem(Inventory inv, String displayName) {
         ItemStack setNameItem = new ItemStack(Material.NAME_TAG);
         ItemMeta setNameMeta = setNameItem.getItemMeta();
-        setNameMeta.displayName(Component.text(displayName));
+        setNameMeta.displayName(Component.text("Name: " + displayName));
         setNameItem.setItemMeta(setNameMeta);
         inv.setItem(29, setNameItem);
     }
@@ -717,6 +761,29 @@ public class VillagerEditListener implements Listener {
                 inventoryMap.remove(event.getInventory());
             }
         }
+    }
+
+    private static final double TURN_RADIUS = 5.0;
+
+    @EventHandler
+    public void onPlayerMove(PlayerMoveEvent event) {
+        Player player = event.getPlayer();
+        Location playerLocation = player.getLocation();
+
+        for (Entity entity : player.getNearbyEntities(TURN_RADIUS, TURN_RADIUS, TURN_RADIUS)) {
+            if (entity instanceof Villager villager) {
+                if (Boolean.TRUE.equals(staticMap.get(villager))) {
+                    turnVillagerTowardsPlayer(villager, playerLocation);
+                }
+            }
+        }
+    }
+
+    private void turnVillagerTowardsPlayer(Villager villager, Location playerLocation) {
+        Location villagerLocation = villager.getLocation();
+        Vector direction = playerLocation.toVector().subtract(villagerLocation.toVector());
+        villagerLocation.setDirection(direction);
+        villager.teleportAsync(villagerLocation);
     }
 
 
