@@ -110,7 +110,7 @@ public class VillagerEditListener implements Listener {
         PersistentDataContainer dataContainer = villager.getPersistentDataContainer();
 
         dataContainer.set(STATIC_KEY, PersistentDataType.STRING, staticMap.get(villager).toString());
-        dataContainer.set(PROFESSION_KEY, PersistentDataType.STRING, villager.getProfession().name());
+        dataContainer.set(PROFESSION_KEY, PersistentDataType.STRING, villager.getProfession().name();
         String tradesData = serializeMerchantRecipes(villager.getRecipes());
         dataContainer.set(TRADES_KEY, PersistentDataType.STRING, tradesData);
         // If it doesn't, store a default value
