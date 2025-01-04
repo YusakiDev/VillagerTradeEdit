@@ -4,7 +4,7 @@
     <option name="PROGRAM_PARAMETERS" value="-nogui" />
     <option name="WORKING_DIRECTORY" value="C:\Users\ASUS\Desktop\New folder (6)" />
     <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
-    <option name="ALTERNATIVE_JRE_PATH" value="17" />
+    <option name="ALTERNATIVE_JRE_PATH" value="21" />
     <method v="2">
       <option name="Maven.BeforeRunTask" enabled="true" file="$PROJECT_DIR$/pom.xml" goal="package" />
       <option name="AntTarget" enabled="true" antfile="file://$PROJECT_DIR$/build.xml" target="Build" />

@@ -1,6 +1,7 @@
 package org.yusaki.villagertradeedit;
 
 import com.destroystokyo.paper.event.entity.EntityPathfindEvent;
+import io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -30,7 +31,6 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.Vector;
 import org.bukkit.util.io.BukkitObjectInputStream;
 import org.bukkit.util.io.BukkitObjectOutputStream;
-import org.mineacademy.fo.Common;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -55,10 +55,12 @@ public class VillagerEditListener implements Listener {
     private final NamespacedKey PROFESSION_KEY;
     private final NamespacedKey TRADES_KEY;
     private final NamespacedKey PERMISSION_KEY;
+    GlobalRegionScheduler scheduler;
 
 
     public VillagerEditListener() {
         this.plugin = VillagerTradeEdit.getInstance();
+        scheduler = plugin.getServer().getGlobalRegionScheduler();
         this.wrapper = VillagerTradeEdit.getInstance().wrapper;
         STATIC_KEY = new NamespacedKey(plugin, "static");
         PROFESSION_KEY = new NamespacedKey(plugin, "profession");
@@ -342,6 +344,12 @@ public class VillagerEditListener implements Listener {
     }
 
     private void updatePermissionDisplayItem(Inventory inv, String permission) {
+        if (inv == null || inv.getSize() <= 30) {
+            // Log or handle the invalid inventory size
+            wrapper.logWarn("Inventory size is invalid or does not contain slot 30.");
+            return;
+        }
+
         ItemStack setPermissionItem = inv.getItem(30);
         if (setPermissionItem == null) {
             setPermissionItem = new ItemStack(Material.PAPER);
@@ -351,6 +359,7 @@ public class VillagerEditListener implements Listener {
         setPermissionItem.setItemMeta(setPermissionMeta);
         inv.setItem(30, setPermissionItem);
     }
+
 
     /**
      * The onInventoryClick method is an event handler method that is called when a player clicks an item in an inventory.
@@ -488,7 +497,7 @@ public class VillagerEditListener implements Listener {
                     HandlerList.unregisterAll(this);
                     event.setCancelled(true);
                     wrapper.sendMessage(player, "Permission set to " + permission);
-                    Common.runAsync(() -> {
+                    scheduler.run(plugin, (b) -> {
                         player.openInventory(inv);
                     });
 
@@ -517,7 +526,7 @@ public class VillagerEditListener implements Listener {
                         }, null);
                     }
                     HandlerList.unregisterAll(this);
-                    Common.runAsync(() -> {
+                    scheduler.run(plugin, (a) -> {
                         player.openInventory(inv);
                     });
 
