@@ -67,3 +67,6 @@ REBASE.bat
 
 # Place your proprietary software here, this won't get synced to remote 
 libs/
+AGENTS.md
+
+Docs/
