@@ -66,6 +66,22 @@ public class SerializableMerchantRecipe implements Serializable {
             recipe.addIngredient(ingredient2);
         }
 
+        // Neutralize dynamic price modifiers (Hero of the Village, reputation, demand)
+        try {
+            recipe.setSpecialPrice(0);
+        } catch (Throwable ignored) { }
+        try {
+            recipe.setDemand(0);
+        } catch (Throwable ignored) { }
+        try {
+            recipe.setPriceMultiplier(0.0f);
+        } catch (Throwable ignored) { }
+        try {
+            // Use reflection for compatibility across API versions
+            java.lang.reflect.Method m = MerchantRecipe.class.getMethod("setIgnoreDiscounts", boolean.class);
+            m.invoke(recipe, true);
+        } catch (Throwable ignored) { }
+
         return recipe;
     }
 

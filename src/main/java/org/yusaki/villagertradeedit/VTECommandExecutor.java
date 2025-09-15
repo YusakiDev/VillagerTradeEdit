@@ -1,5 +1,6 @@
 package org.yusaki.villagertradeedit;
 
+import com.tcoded.folialib.FoliaLib;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -12,6 +13,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
 import org.bukkit.util.BlockIterator;
 import org.jetbrains.annotations.NotNull;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,11 +24,13 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
     private final VillagerTradeEdit plugin;
     private final YskLibWrapper wrapper;
     private final VillagerEditListener villagerEditListener;
+    private final FoliaLib foliaLib;
 
     public VTECommandExecutor(VillagerTradeEdit plugin, VillagerEditListener villagerEditListener) {
         this.plugin = plugin;
         this.wrapper = VillagerTradeEdit.getInstance().wrapper;
         this.villagerEditListener = villagerEditListener;
+        this.foliaLib = plugin.getFoliaLib();
     }
 
     @Override
@@ -40,8 +46,8 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        if (args.length == 0) {
-            wrapper.sendMessage(player, "VillagerTradeEdit by Yusaki");
+        if (args.length == 0 || "help".equalsIgnoreCase(args[0])) {
+            sendPluginInfo(player);
             return true;
         }
 
@@ -64,8 +70,10 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
                     spawnLocation.setZ(Math.floor(spawnLocation.getZ()) + 0.5);
 
                     Villager villager = (Villager) player.getWorld().spawnEntity(spawnLocation, EntityType.VILLAGER);
-                    villagerEditListener.activateStaticMode(villager, player);
-                    villager.teleportAsync(spawnLocation);
+                    foliaLib.getScheduler().runAtEntity(villager, task -> {
+                        villagerEditListener.activateStaticMode(villager, player);
+                        villager.teleportAsync(spawnLocation);
+                    });
                     return true;
                 }
             }
@@ -84,6 +92,35 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
         }
 
         return false;
+    }
+
+    private void sendPluginInfo(Player player) {
+        String name = plugin.getDescription().getName();
+        String version = plugin.getDescription().getVersion();
+        String author = String.join(", ", plugin.getDescription().getAuthors());
+
+        player.sendMessage(Component.text(""));
+        player.sendMessage(Component.text(name + " v" + version)
+                .color(NamedTextColor.GOLD)
+                .decorate(TextDecoration.BOLD));
+        player.sendMessage(Component.text("Custom villager trade editor (Paper/Folia).")
+                .color(NamedTextColor.GRAY));
+        player.sendMessage(Component.text("Author: ")
+                .color(NamedTextColor.DARK_GRAY)
+                .append(Component.text(author).color(NamedTextColor.WHITE)));
+
+        player.sendMessage(Component.text(""));
+        player.sendMessage(Component.text("Commands:").color(NamedTextColor.GOLD));
+        player.sendMessage(Component.text(" • /vte summon").color(NamedTextColor.YELLOW)
+                .append(Component.text(" – Spawn managed static villager").color(NamedTextColor.GRAY)));
+        player.sendMessage(Component.text(" • /vte reload").color(NamedTextColor.YELLOW)
+                .append(Component.text(" – Reload configuration").color(NamedTextColor.GRAY)));
+
+        player.sendMessage(Component.text(""));
+        player.sendMessage(Component.text("Interactions:").color(NamedTextColor.GOLD));
+        player.sendMessage(Component.text(" • Right-click: trade (permission if set)").color(NamedTextColor.GRAY));
+        player.sendMessage(Component.text(" • Shift-right-click: open editor").color(NamedTextColor.GRAY));
+        player.sendMessage(Component.text(""));
     }
 
     @Override
