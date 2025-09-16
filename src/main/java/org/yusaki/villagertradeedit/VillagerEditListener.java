@@ -537,7 +537,7 @@ public class VillagerEditListener implements Listener {
         }
     }
 
-    // When a merchant UI opens, ensure its recipes ignore discounts for this session
+    // When a merchant UI opens, ensure discounts are neutralized only for managed villagers
     @EventHandler
     public void onInventoryOpen(InventoryOpenEvent event) {
         if (!(event.getInventory() instanceof MerchantInventory inv)) {
@@ -547,18 +547,26 @@ public class VillagerEditListener implements Listener {
         if (merchant == null) {
             return;
         }
-        List<MerchantRecipe> recipes = new ArrayList<>(merchant.getRecipes());
-        for (MerchantRecipe r : recipes) {
-            neutralizeRecipeDiscounts(r);
-        }
-        merchant.setRecipes(recipes);
+        // Only apply global neutralization if the merchant is a villager managed by this plugin
+        if (merchant instanceof Villager villager) {
+            PersistentDataContainer pdc = villager.getPersistentDataContainer();
+            if (!pdc.has(STATIC_KEY, PersistentDataType.STRING)) {
+                return; // normal villagers keep their vanilla discounts
+            }
 
-        // Additionally, temporarily remove Hero of the Village from the opening player to prevent recalculation
-        if (event.getPlayer() instanceof Player player) {
-            PotionEffect effect = player.getPotionEffect(PotionEffectType.HERO_OF_THE_VILLAGE);
-            if (effect != null) {
-                removedHotv.put(player.getUniqueId(), effect);
-                player.removePotionEffect(PotionEffectType.HERO_OF_THE_VILLAGE);
+            List<MerchantRecipe> recipes = new ArrayList<>(merchant.getRecipes());
+            for (MerchantRecipe r : recipes) {
+                neutralizeRecipeDiscounts(r);
+            }
+            merchant.setRecipes(recipes);
+
+            // Temporarily remove Hero of the Village only for managed villagers to prevent recalculation
+            if (event.getPlayer() instanceof Player player) {
+                PotionEffect effect = player.getPotionEffect(PotionEffectType.HERO_OF_THE_VILLAGE);
+                if (effect != null) {
+                    removedHotv.put(player.getUniqueId(), effect);
+                    player.removePotionEffect(PotionEffectType.HERO_OF_THE_VILLAGE);
+                }
             }
         }
     }
