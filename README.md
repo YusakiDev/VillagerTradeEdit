@@ -1,46 +1,61 @@
 # VillagerTradeEdit
 
-VillagerTradeEdit is a Minecraft plugin that allows players with the appropriate permissions to edit the trades of villagers within the game. Utilizing intuitive in-game UI, users can quickly and efficiently customize the trades offered by any villager.
-
-This is similar to Shopkeepers plugin but it can edit any villager, also It support folia
+VillagerTradeEdit lets administrators curate villager trades safely on modern Paper and Folia servers. The plugin focuses on Folia-friendly scheduling, per-player trade sessions, and built-in safeguards against vanilla discount exploits.
 
 ## Supported Software Versions
-- Paper 1.20.4 (Untested)
-- Folia 1.20.4
+- Paper 1.21.x
+- Folia 1.21.x
+
+Earlier releases may still work, but only the versions above are exercised alongside the current codebase.
 
 ## Features
+- Summon plugin-managed "static" villagers that stay centered, invulnerable, and collidable-free.
+- Shift-right-click managed villagers to open the editor; normal right-click opens an individualized merchant window so multiple players can trade simultaneously.
+- Configure per-villager trade permissions, professions, names (MiniMessage or legacy colors), and paginated trade recipes.
+- Neutralizes Hero of the Village, reputation, and demand discounts only on managed villagers while preserving vanilla behavior for others.
+- Automatically saves trade changes on inventory close and rehydrates villagers as chunks load.
+- Built with FoliaLib to keep every villager interaction region-thread safe.
 
-- Easy and intuitive villager trades editing.
-- In-game UI for modifying trades.
-- Ability to make villagers 'static', effectively preventing them from moving around.
+## Requirements
+- A compatible YskLib plugin jar (`>= 1.2.1`) installed alongside VillagerTradeEdit.
+- Java 21 runtime.
+- Paper or Folia server 1.21.x.
 
-## Commands and Permissions
+## Installation
+1. Download or build the latest `VillagerTradeEdit-<version>.jar` (see building instructions below).
+2. Place the jar in your server's `plugins/` directory.
+3. Ensure `YskLib-1.2.1.jar` (or newer) is also present in `plugins/`.
+4. Restart or start the server.
 
-Commands
+## Building from Source
+1. Obtain `YskLib-1.2.1.jar` locally and update the `systemPath` in `pom.xml` if your path differs from the default.
+2. Run `mvn clean package` to produce a shaded jar in `target/`.
+3. Copy the generated jar to your server's `plugins/` directory.
 
-- `/vte reload` - Reloads the plugin configuration file.
-- `/vte summon` - Summons a static villager."
+## Commands and Interactions
+- `/vte` – Shows plugin information and usage hints.
+- `/vte summon` – Spawns a managed static villager in front of the player.
+- `/vte reload` – Reloads the plugin configuration.
+- Right-click a managed villager – Opens your personal trading menu respecting any per-villager permission.
+- Shift-right-click a managed villager – Opens the trade editor GUI.
 
-Permissions
-
-- `villagertradeedit.command` - Required to use any command from the plugin.
-- `villagertradeedit.open` - Permission to open the villager trade edit menu.
-- `villagertradeedit.command.reload` - Permission to reload the plugin configuration file.
-- `villagertradeedit.command.summon` - Permission to summon a static villager.
-
-## Setup
-
-1. Download the latest version of the VillagerTradeEdit plugin.
-2. Place the downloaded .jar into the plugins directory of your server files.
-3. Restart your server to load the plugin.
+### Permissions
+- `villagertradeedit.command` – Required for any `/vte` subcommand.
+- `villagertradeedit.command.summon` – Allows `/vte summon`.
+- `villagertradeedit.command.reload` – Allows `/vte reload`.
+- `villagertradeedit.open` – Allows opening the editor via shift-right-click.
 
 ## Configuration
+The first run creates `plugins/VillagerTradeEdit/config.yml` with:
+- `debug` – Enables verbose logging when `true`.
+- `version` – Internal config schema indicator; do not change manually.
+- `enabled-worlds` – Worlds where the plugin may operate.
+- `messages.*` – Chat prefix and localized messages used by YskLib.
 
-A configuration file named `config.yml` will be created in the `plugins/VillagerTradeEdit` directory upon the first run of the plugin. Inside the `config.yml` file, you can edit the following variables:
-
-`debug` (default is `false`) - this value decides whether detailed debug information will be printed to console.
+Update the configuration, then use `/vte reload` to apply changes.
 
 ## Support
+Open an issue or discussion on GitHub if you encounter problems, have feature requests, or would like to contribute.
 
-If you encounter any issues or have any feedback or suggestions for the plugin, please feel free to open an issue on the GitHub repository. We will do our best to address any issues and implement any suggestions.
-
+## License
+VillagerTradeEdit is distributed under the GNU General Public License v3.0. See [`LICENSE`](LICENSE) for full terms.
