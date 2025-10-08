@@ -1,8 +1,16 @@
 # This is the main configuration for the plugin
-# debug value can be true or false. When debug is true, the application prints more in detail log messages
-debug: false
+# Debug level (0-3): 0 = Severe only, 1 = Warn and above, 2 = Info and above, 3 = Debug and above
+debug: 1
 # Version number of the application do not change this
-version: 2.0
+version: 3.1
+
+settings:
+  command-aliases:
+    vte:
+      - villagertradeedit
+      - villagertrade
+      - vtrade
+      - vedit
 
 enabled-worlds:
   - world1
