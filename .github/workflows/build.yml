@@ -36,17 +36,25 @@ jobs:
         mvn clean install -DskipTests
         cd ..
 
-    - name: Build VillagerTradeEdit
-      run: mvn clean package -DskipTests
+    - name: Build VillagerTradeEdit with build number
+      run: mvn clean package -DskipTests -Dbuild.number=${{ github.run_number }}
 
-    - name: Upload artifact
+    - name: Upload VillagerTradeEdit artifact
       uses: actions/upload-artifact@v4
       with:
         name: VillagerTradeEdit
         path: target/VillagerTradeEdit-*.jar
 
+    - name: Upload YskLib artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: YskLib
+        path: YskLib/target/YskLib-*.jar
+
     - name: Upload to release
       if: github.event_name == 'release'
       uses: softprops/action-gh-release@v1
       with:
-        files: target/VillagerTradeEdit-*.jar
+        files: |
+          target/VillagerTradeEdit-*.jar
+          YskLib/target/YskLib-*.jar
