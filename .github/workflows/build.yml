@@ -37,11 +37,15 @@ jobs:
     - name: Build VillagerTradeEdit with build number
       run: mvn clean package -DskipTests -Dbuild.number.formatted=-b${{ github.run_number }}
 
+    - name: Prepare artifacts
+      run: |
+        mkdir -p artifacts
+        cp target/VillagerTradeEdit-*-b*.jar artifacts/
+        cp YskLib/target/YskLib-*-b*.jar artifacts/
+
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
         name: VillagerTradeEdit
-        path: |
-          target/VillagerTradeEdit-*.jar
-          YskLib/target/YskLib-*.jar
+        path: artifacts/*.jar
         compression-level: 0
