@@ -1,0 +1,44 @@
+name: Release VillagerTradeEdit
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout VillagerTradeEdit
+      uses: actions/checkout@v4
+
+    - name: Checkout YskLib
+      uses: actions/checkout@v4
+      with:
+        repository: YusakiDev/YskLib
+        path: YskLib
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: maven
+
+    - name: Build and install YskLib
+      run: |
+        cd YskLib
+        mvn clean install -DskipTests
+        cd ..
+
+    - name: Build VillagerTradeEdit release (no build number)
+      run: mvn clean package -DskipTests
+
+    - name: Create GitHub release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          target/VillagerTradeEdit-*.jar
+          YskLib/target/YskLib-*.jar
+        generate_release_notes: true

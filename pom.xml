@@ -13,7 +13,7 @@
     <name>VillagerTradeEdit</name>
 
     <!-- Change to the appropriate plugin's version, starting at 1.0.0. -->
-    <version>1.4.5${build.number.suffix}</version>
+    <version>1.4.4${build.number.suffix}</version>
 
     <!-- DO NOT EDIT. -->
     <packaging>jar</packaging>
