@@ -35,7 +35,7 @@ jobs:
         cd ..
 
     - name: Build VillagerTradeEdit with build number
-      run: mvn clean package -DskipTests -Dbuild.number=${{ github.run_number }}
+      run: mvn clean package -DskipTests -Dbuild.number.formatted=-b${{ github.run_number }}
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
