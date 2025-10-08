@@ -17,6 +17,7 @@ public final class VillagerTradeEdit extends JavaPlugin {
         saveDefaultConfig();
         yskLib = (YskLib) Bukkit.getPluginManager().getPlugin("YskLib");
         yskLib.updateConfig(this);
+        yskLib.loadMessages(this);
         wrapper = new YskLibWrapper(yskLib);
         foliaLib = new FoliaLib(this);
         getLogger().info("VillagerTradeEdit enabled!");

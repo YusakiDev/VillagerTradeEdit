@@ -77,7 +77,7 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
                     return true;
                 }
             }
-            wrapper.sendMessage(player, "No block in range to spawn villager.");
+            wrapper.sendMessage(player, "noBlockInRange");
             return true;
         }
 

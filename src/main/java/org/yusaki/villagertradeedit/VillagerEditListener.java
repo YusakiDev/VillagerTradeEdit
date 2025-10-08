@@ -434,7 +434,7 @@ public class VillagerEditListener implements Listener {
             String perm = pdc.get(PERMISSION_KEY, PersistentDataType.STRING);
             if (perm != null && !perm.isBlank() && !perm.equalsIgnoreCase("none") && !player.hasPermission(perm)) {
                 event.setCancelled(true);
-                wrapper.sendMessage(player, "You do not have permission to trade with this villager.");
+                wrapper.sendMessage(player, "noTradePermission");
                 return;
             }
 
@@ -477,7 +477,7 @@ public class VillagerEditListener implements Listener {
         }
         // Only allow editing for plugin-managed villagers
         if (!villager.getPersistentDataContainer().has(STATIC_KEY, PersistentDataType.STRING)) {
-            wrapper.sendMessage(player, "This is not a managed villager.");
+            wrapper.sendMessage(player, "notManagedVillager");
             return;
         }
         if (!player.hasPermission("villagertradeedit.open")) {
@@ -678,7 +678,7 @@ public class VillagerEditListener implements Listener {
 
         player.closeInventory();
         // Prompt the player to enter the new permission
-        wrapper.sendMessage(player, "Enter the permission to trade with this villager (type 'none' to clear):");
+        wrapper.sendMessage(player, "enterPermissionPrompt");
         Bukkit.getPluginManager().registerEvents(new Listener() {
             @EventHandler
             public void onPlayerChat(AsyncPlayerChatEvent event) {
@@ -692,11 +692,11 @@ public class VillagerEditListener implements Listener {
                         if (permission.equalsIgnoreCase("none") || permission.isBlank()) {
                             permissionMap.remove(villager);
                             villager.getPersistentDataContainer().remove(PERMISSION_KEY);
-                            wrapper.sendMessage(player, "Trade permission cleared.");
+                            wrapper.sendMessage(player, "permissionCleared");
                         } else {
                             permissionMap.put(villager, permission);
                             villager.getPersistentDataContainer().set(PERMISSION_KEY, PersistentDataType.STRING, permission);
-                            wrapper.sendMessage(player, "Permission set to " + permission);
+                            wrapper.sendMessage(player, "permissionSet", permission);
                         }
 
                         // Reopen GUI and refresh label on next tick
@@ -715,7 +715,7 @@ public class VillagerEditListener implements Listener {
 
     private void handleSetName(Villager villager, Player player, Inventory inv) {
         player.closeInventory();
-        wrapper.sendMessage(player, "Enter new name (mm:/mini: for MiniMessage, 'none' to clear, 'cancel' to abort):");
+        wrapper.sendMessage(player, "enterNamePrompt");
         Bukkit.getPluginManager().registerEvents(new Listener() {
             @EventHandler
             public void onPlayerChat(AsyncPlayerChatEvent event) {
@@ -723,12 +723,12 @@ public class VillagerEditListener implements Listener {
                     event.setCancelled(true);
                     String input = event.getMessage();
                     if (input.equalsIgnoreCase("cancel")) {
-                        wrapper.sendMessage(player, "Name change cancelled.");
+                        wrapper.sendMessage(player, "nameCancelled");
                     } else if (input.equalsIgnoreCase("none")) {
                         foliaLib.getScheduler().runAtEntity(villager, task -> {
                             villager.customName(null);
                             villager.setCustomNameVisible(false);
-                            wrapper.sendMessage(player, "Villager name cleared.");
+                            wrapper.sendMessage(player, "nameCleared");
                             updateNameDisplayItem(inv, null);
                         });
                     } else {
@@ -736,7 +736,7 @@ public class VillagerEditListener implements Listener {
                         foliaLib.getScheduler().runAtEntity(villager, task -> {
                             villager.customName(comp);
                             villager.setCustomNameVisible(true);
-                            wrapper.sendMessage(player, "Villager name updated.");
+                            wrapper.sendMessage(player, "nameUpdated");
                             updateNameDisplayItem(inv, villager.customName());
                         });
                     }
@@ -767,7 +767,7 @@ public class VillagerEditListener implements Listener {
             try {
                 villager.remove();
             } catch (Throwable ignored) { }
-            wrapper.sendMessage(player, "Villager deleted.");
+            wrapper.sendMessage(player, "villagerDeleted");
         });
     }
 
