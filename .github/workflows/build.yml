@@ -42,7 +42,15 @@ jobs:
     - name: Build and install YskLib
       run: |
         cd YskLib
-        mvn clean install -DskipTests -Dbuild.number.formatted=-${{ steps.ysklib-commit.outputs.sha }}
+        mvn clean package -DskipTests -Dbuild.number.formatted=-${{ steps.ysklib-commit.outputs.sha }}
+        JAR_PATH=$(ls target/YskLib-1.*.jar | head -n 1)
+        mvn install:install-file \
+          -Dfile="$JAR_PATH" \
+          -DgroupId=org.yusaki \
+          -DartifactId=lib \
+          -Dversion=1.6.4 \
+          -Dpackaging=jar \
+          -DgeneratePom=true
         cd ..
 
     - name: Build VillagerTradeEdit with commit hash
