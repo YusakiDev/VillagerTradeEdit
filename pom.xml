@@ -13,7 +13,7 @@
     <name>VillagerTradeEdit</name>
 
     <!-- Change to the appropriate plugin's version, starting at 1.0.0. -->
-    <version>1.4.4</version>
+    <version>1.4.4${build.number.formatted}</version>
 
     <!-- DO NOT EDIT. -->
     <packaging>jar</packaging>
@@ -120,7 +120,7 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
-                            <finalName>${project.name}-${project.version}${build.number.formatted}</finalName>
+                            <finalName>${project.name}-${project.version}</finalName>
                         </configuration>
                     </execution>
                 </executions>

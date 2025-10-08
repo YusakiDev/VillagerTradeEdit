@@ -15,11 +15,22 @@ jobs:
     - name: Checkout VillagerTradeEdit
       uses: actions/checkout@v4
 
+    - name: Get VTE commit hash
+      id: vte-commit
+      run: echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
     - name: Checkout YskLib
       uses: actions/checkout@v4
       with:
         repository: YusakiDev/YskLib
         path: YskLib
+
+    - name: Get YskLib commit hash
+      id: ysklib-commit
+      run: |
+        cd YskLib
+        echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+        cd ..
 
     - name: Set up JDK 21
       uses: actions/setup-java@v4
@@ -31,17 +42,17 @@ jobs:
     - name: Build and install YskLib
       run: |
         cd YskLib
-        mvn clean install -DskipTests
+        mvn clean install -DskipTests -Dbuild.number.formatted=-${{ steps.ysklib-commit.outputs.sha }}
         cd ..
 
-    - name: Build VillagerTradeEdit with build number
-      run: mvn clean package -DskipTests -Dbuild.number.formatted=-b${{ github.run_number }}
+    - name: Build VillagerTradeEdit with commit hash
+      run: mvn clean package -DskipTests -Dbuild.number.formatted=-${{ steps.vte-commit.outputs.sha }}
 
     - name: Prepare artifacts
       run: |
         mkdir -p artifacts
-        cp target/VillagerTradeEdit-*-b*.jar artifacts/
-        cp YskLib/target/YskLib-*-b*.jar artifacts/
+        cp target/VillagerTradeEdit-1.*.jar artifacts/ || cp target/VillagerTradeEdit-*.jar artifacts/
+        cp YskLib/target/YskLib-1.*.jar artifacts/ || cp YskLib/target/YskLib-*.jar artifacts/
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
