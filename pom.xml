@@ -13,7 +13,7 @@
     <name>VillagerTradeEdit</name>
 
     <!-- Change to the appropriate plugin's version, starting at 1.0.0. -->
-    <version>1.4.4${build.number.formatted}</version>
+    <version>1.4.5${build.number.formatted}</version>
 
     <!-- DO NOT EDIT. -->
     <packaging>jar</packaging>
@@ -70,7 +70,7 @@
         <dependency>
             <groupId>org.yusaki</groupId>
             <artifactId>lib</artifactId>
-            <version>1.6.3</version>
+            <version>1.6.4</version>
             <scope>provided</scope>
         </dependency>
 
