@@ -13,7 +13,7 @@
     <name>VillagerTradeEdit</name>
 
     <!-- Change to the appropriate plugin's version, starting at 1.0.0. -->
-    <version>1.4.2</version>
+    <version>1.4.3</version>
 
     <!-- DO NOT EDIT. -->
     <packaging>jar</packaging>
@@ -64,11 +64,10 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>com.yusaki.lib</groupId>
-            <artifactId>YskLib-1.2.1</artifactId>
-            <version>1.2.1</version>
-            <scope>system</scope>
-            <systemPath>D:/Libraries/YskLib-1.2.1.jar</systemPath>
+            <groupId>org.yusaki</groupId>
+            <artifactId>lib</artifactId>
+            <version>1.6.2</version>
+            <scope>provided</scope>
         </dependency>
 
         <!-- FoliaLib for Folia compatibility -->

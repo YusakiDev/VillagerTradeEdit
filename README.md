@@ -17,18 +17,18 @@ Earlier releases may still work, but only the versions above are exercised along
 - Built with FoliaLib to keep every villager interaction region-thread safe.
 
 ## Requirements
-- A compatible YskLib plugin jar (`>= 1.2.1`) installed alongside VillagerTradeEdit.
+- A compatible YskLib plugin jar (`>= 1.6.2`) installed alongside VillagerTradeEdit.
 - Java 21 runtime.
 - Paper or Folia server 1.21.x.
 
 ## Installation
 1. Download or build the latest `VillagerTradeEdit-<version>.jar` (see building instructions below).
 2. Place the jar in your server's `plugins/` directory.
-3. Ensure `YskLib-1.2.1.jar` (or newer) is also present in `plugins/`.
+3. Ensure `YskLib-1.6.2.jar` (or newer) is also present in `plugins/`.
 4. Restart or start the server.
 
 ## Building from Source
-1. Obtain `YskLib-1.2.1.jar` locally and update the `systemPath` in `pom.xml` if your path differs from the default.
+1. Obtain `YskLib-1.6.2.jar` locally and update the `systemPath` in `pom.xml` if your path differs from the default.
 2. Run `mvn clean package` to produce a shaded jar in `target/`.
 3. Copy the generated jar to your server's `plugins/` directory.
 
