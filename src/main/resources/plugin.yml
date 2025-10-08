@@ -1,5 +1,5 @@
 name: VillagerTradeEdit
-version: '${version}'
+version: '${project.version}'
 main: org.yusaki.villagertradeedit.VillagerTradeEdit
 api-version: '1.21'
 author: Yusaki
