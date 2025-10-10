@@ -13,7 +13,7 @@
     <name>VillagerTradeEdit</name>
 
     <!-- Change to the appropriate plugin's version, starting at 1.0.0. -->
-    <version>1.4.5${build.number.formatted}</version>
+    <version>1.4.6${build.number.formatted}</version>
 
     <!-- DO NOT EDIT. -->
     <packaging>jar</packaging>
@@ -64,13 +64,13 @@
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
-            <version>1.21.1-R0.1-SNAPSHOT</version>
+            <version>1.21-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.yusaki</groupId>
             <artifactId>lib</artifactId>
-            <version>1.6.4</version>
+            <version>1.6.7</version>
             <scope>provided</scope>
         </dependency>
 

@@ -55,10 +55,9 @@ public class VillagerEditListener implements Listener {
     private final Map<Inventory, Boolean> tradeAlteredMap = new HashMap<>();
     private final Map<Inventory, Integer> pageMap = new HashMap<>();
     private final Map<Villager, List<RecipeRow>> editBuffer = new HashMap<>();
-    private final Map<Villager, Boolean> staticMap = new HashMap<>();
-    private final Map<Villager, String> permissionMap = new HashMap<>();
+    private final Map<UUID, Boolean> staticMap = new HashMap<>();
+    private final Map<UUID, String> permissionMap = new HashMap<>();
     private final Map<Villager, Villager.Profession> pendingProfessionMap = new HashMap<>();
-    private final Set<UUID> retrievedVillagers = new HashSet<>();
     // Allows profession change events initiated by the plugin to pass
     private final Set<UUID> allowCareerChange = new HashSet<>();
     // Tracks temporarily removed Hero of the Village effects per player during trading
@@ -85,8 +84,8 @@ public class VillagerEditListener implements Listener {
     /**
      * The onChunkLoad method is an event handler method that is called when a chunk is loaded in the world.
      * It iterates through all entities in the loaded chunk and checks if they are instances of Villager.
-     * If a Villager entity has persistent data stored with a specific key ,and it has not been retrieved
-     * before, it retrieves the stored data and adds the villager's UUID to the retrievedVillagers set.
+     * If a Villager entity has persistent data stored with a specific key, it attempts to retrieve
+     * the stored data and reapply it to ensure state consistency after chunk reloads.
      *
      * @param event The ChunkLoadEvent object representing the event that occurred.
      */
@@ -103,10 +102,9 @@ public class VillagerEditListener implements Listener {
                 // Check if the villager has data stored
                 NamespacedKey staticKey = new NamespacedKey(plugin, "static");
 
-                if (dataContainer.has(staticKey, PersistentDataType.STRING) && !retrievedVillagers.contains(villager.getUniqueId())) {
+                if (dataContainer.has(staticKey, PersistentDataType.STRING)) {
                     wrapper.logDebug("Found villager with data in loaded chunk, attempting to retrieve data");
                     retrieveVillagerData(villager);
-                    retrievedVillagers.add(villager.getUniqueId());
                 }
             }
         }
@@ -125,16 +123,25 @@ public class VillagerEditListener implements Listener {
 
             PersistentDataContainer dataContainer = villager.getPersistentDataContainer();
 
-            dataContainer.set(STATIC_KEY, PersistentDataType.STRING, staticMap.get(villager).toString());
+            UUID villagerId = villager.getUniqueId();
+            boolean managed = isVillagerManaged(villager);
+            staticMap.put(villagerId, managed);
+
+            dataContainer.set(STATIC_KEY, PersistentDataType.STRING, Boolean.toString(managed));
             dataContainer.set(PROFESSION_KEY, PersistentDataType.STRING, villager.getProfession().name());
             String tradesData = serializeMerchantRecipes(villager.getRecipes());
             dataContainer.set(TRADES_KEY, PersistentDataType.STRING, tradesData);
             // Persist per-villager trade permission only when explicitly set (non-empty and not "none")
-            String perm = permissionMap.get(villager);
+            String perm = permissionMap.get(villagerId);
+            if (perm == null) {
+                perm = dataContainer.get(PERMISSION_KEY, PersistentDataType.STRING);
+            }
             if (perm != null && !perm.isBlank() && !perm.equalsIgnoreCase("none")) {
                 dataContainer.set(PERMISSION_KEY, PersistentDataType.STRING, perm);
+                permissionMap.put(villagerId, perm);
             } else {
                 dataContainer.remove(PERMISSION_KEY);
+                permissionMap.remove(villagerId);
             }
 
             wrapper.logDebug("Stored data for villager " + villager.getUniqueId());
@@ -154,8 +161,10 @@ public class VillagerEditListener implements Listener {
             PersistentDataContainer dataContainer = villager.getPersistentDataContainer();
 
             String staticValue = dataContainer.get(STATIC_KEY, PersistentDataType.STRING);
-            staticMap.put(villager, Boolean.valueOf(staticValue));
-            villager.setCollidable(!Boolean.parseBoolean(staticValue));
+            UUID villagerId = villager.getUniqueId();
+            boolean managed = staticValue != null && Boolean.parseBoolean(staticValue);
+            staticMap.put(villagerId, managed);
+            villager.setCollidable(!managed);
 
             String professionName = dataContainer.get(PROFESSION_KEY, PersistentDataType.STRING);
             if (professionName != null) {
@@ -176,7 +185,11 @@ public class VillagerEditListener implements Listener {
             }
 
             String permission = dataContainer.get(PERMISSION_KEY, PersistentDataType.STRING);
-            permissionMap.put(villager, permission);
+            if (permission == null || permission.isBlank()) {
+                permissionMap.remove(villagerId);
+            } else {
+                permissionMap.put(villagerId, permission);
+            }
 
             String tradesData = dataContainer.get(TRADES_KEY, PersistentDataType.STRING);
             villager.setRecipes(deserializeMerchantRecipes(tradesData));
@@ -689,12 +702,13 @@ public class VillagerEditListener implements Listener {
 
                     // Apply changes on the villager's region thread for Folia safety
                     foliaLib.getScheduler().runAtEntity(villager, task -> {
+                        UUID villagerId = villager.getUniqueId();
                         if (permission.equalsIgnoreCase("none") || permission.isBlank()) {
-                            permissionMap.remove(villager);
+                            permissionMap.remove(villagerId);
                             villager.getPersistentDataContainer().remove(PERMISSION_KEY);
                             wrapper.sendMessage(player, "permissionCleared");
                         } else {
-                            permissionMap.put(villager, permission);
+                            permissionMap.put(villagerId, permission);
                             villager.getPersistentDataContainer().set(PERMISSION_KEY, PersistentDataType.STRING, permission);
                             wrapper.sendMessage(player, "permissionSet", permission);
                         }
@@ -756,8 +770,8 @@ public class VillagerEditListener implements Listener {
         pageMap.remove(inv);
         editBuffer.remove(villager);
         pendingProfessionMap.remove(villager);
-        permissionMap.remove(villager);
-        staticMap.remove(villager);
+        permissionMap.remove(villager.getUniqueId());
+        staticMap.remove(villager.getUniqueId());
 
         // Close GUI to avoid further interactions
         player.closeInventory();
@@ -823,7 +837,7 @@ public class VillagerEditListener implements Listener {
      */
     void activateStaticMode(Villager villager, Player player) {
         wrapper.logDebugPlayer(player, "Static Mode Activated");
-        staticMap.put(villager, true);
+        staticMap.put(villager.getUniqueId(), true);
         villager.setInvulnerable(true);
         villager.setAware(false);
         villager.setVelocity(new Vector(0.0, 0.0, 0.0));
@@ -945,6 +959,22 @@ public class VillagerEditListener implements Listener {
         return Component.text(msg);
     }
 
+    private boolean isVillagerManaged(Villager villager) {
+        UUID id = villager.getUniqueId();
+        Boolean cached = staticMap.get(id);
+        if (cached != null) {
+            return cached;
+        }
+        PersistentDataContainer container = villager.getPersistentDataContainer();
+        String stored = container.get(STATIC_KEY, PersistentDataType.STRING);
+        if (stored != null) {
+            boolean managed = Boolean.parseBoolean(stored);
+            staticMap.put(id, managed);
+            return managed;
+        }
+        return false;
+    }
+
     /**
      * The onEntityPathFind method is an event handler method that is called when an entity tries to find a path to a target location.
      * It checks if the entity is a Villager, If it is not, the method returns.
@@ -958,9 +988,7 @@ public class VillagerEditListener implements Listener {
             return;
         }
 
-        Boolean isStatic = staticMap.get(villager);
-
-        if (isStatic != null && isStatic) {
+        if (isVillagerManaged(villager)) {
             event.setCancelled(true);
         }
     }
@@ -978,7 +1006,7 @@ public class VillagerEditListener implements Listener {
             return;
         }
 
-        if (Boolean.TRUE.equals(staticMap.get(villager))) {
+        if (isVillagerManaged(villager)) {
             event.setCancelled(true);
         }
     }
@@ -999,7 +1027,7 @@ public class VillagerEditListener implements Listener {
             return;
         }
 
-        if (Boolean.TRUE.equals(staticMap.get(villager))) {
+        if (isVillagerManaged(villager)) {
             event.setCancelled(true);
         }
     }
@@ -1042,7 +1070,7 @@ public class VillagerEditListener implements Listener {
             }
 
             // Only save for managed/static villagers (editor only opens for these)
-            if (Boolean.TRUE.equals(staticMap.get(villager))) {
+            if (isVillagerManaged(villager)) {
                 foliaLib.getScheduler().runAtEntity(villager, task -> {
                     // Apply pending profession change before saving
                     if (pendingProfessionMap.containsKey(villager)) {
@@ -1089,7 +1117,7 @@ public class VillagerEditListener implements Listener {
 
         for (Entity entity : player.getNearbyEntities(TURN_RADIUS, TURN_RADIUS, TURN_RADIUS)) {
             if (entity instanceof Villager villager) {
-                if (Boolean.TRUE.equals(staticMap.get(villager))) {
+                if (isVillagerManaged(villager)) {
                     turnVillagerTowardsPlayer(villager, playerLocation);
                 }
             }
