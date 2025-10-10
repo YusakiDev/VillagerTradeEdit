@@ -42,13 +42,14 @@ jobs:
     - name: Build and install YskLib
       run: |
         cd YskLib
+        YSKLIB_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
         mvn clean package -DskipTests -Dbuild.number.formatted=-${{ steps.ysklib-commit.outputs.sha }}
         JAR_PATH=$(ls target/YskLib-1.*.jar | head -n 1)
         mvn install:install-file \
           -Dfile="$JAR_PATH" \
           -DgroupId=org.yusaki \
           -DartifactId=lib \
-          -Dversion=1.6.4 \
+          -Dversion=$YSKLIB_VERSION \
           -Dpackaging=jar \
           -DgeneratePom=true
         cd ..
