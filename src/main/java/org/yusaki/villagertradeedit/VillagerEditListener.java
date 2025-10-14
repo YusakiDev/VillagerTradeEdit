@@ -27,6 +27,7 @@ import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
+import org.bukkit.event.world.EntitiesLoadEvent;
 import org.bukkit.inventory.*;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -110,6 +111,33 @@ public class VillagerEditListener implements Listener {
         }
     }
 
+    /**
+     * The onEntitiesLoad method is an event handler that fires when entities are loaded.
+     * This handles cases where chunks remain loaded (e.g., after server sleep/wake cycles)
+     * but individual villager entities need their data restored.
+     * This is critical for PebbleHost-style sleep mode servers where ChunkLoadEvent
+     * may not fire for already-loaded chunks.
+     *
+     * @param event The EntitiesLoadEvent object representing the event that occurred.
+     */
+    @EventHandler
+    public void onEntitiesLoad(EntitiesLoadEvent event) {
+        if (!wrapper.canExecuteInWorld(event.getWorld())) {
+            return;
+        }
+        for (Entity entity : event.getEntities()) {
+            if (entity instanceof Villager) {
+                Villager villager = (Villager) entity;
+                PersistentDataContainer dataContainer = villager.getPersistentDataContainer();
+
+                if (dataContainer.has(STATIC_KEY, PersistentDataType.STRING)) {
+                    wrapper.logDebug("Found villager entity loading with data, attempting to retrieve data (UUID: " + villager.getUniqueId() + ")");
+                    retrieveVillagerData(villager);
+                }
+            }
+        }
+    }
+
 
     /**
      * The storeVillagerData method stores the data of a Villager entity in its persistent data container.
@@ -119,33 +147,45 @@ public class VillagerEditListener implements Listener {
      */
     public void storeVillagerData(Villager villager) {
         foliaLib.getScheduler().runAtEntity(villager, task -> {
-            wrapper.logDebug("Storing data for villager " + villager.getUniqueId());
-
-            PersistentDataContainer dataContainer = villager.getPersistentDataContainer();
-
-            UUID villagerId = villager.getUniqueId();
-            boolean managed = isVillagerManaged(villager);
-            staticMap.put(villagerId, managed);
-
-            dataContainer.set(STATIC_KEY, PersistentDataType.STRING, Boolean.toString(managed));
-            dataContainer.set(PROFESSION_KEY, PersistentDataType.STRING, villager.getProfession().name());
-            String tradesData = serializeMerchantRecipes(villager.getRecipes());
-            dataContainer.set(TRADES_KEY, PersistentDataType.STRING, tradesData);
-            // Persist per-villager trade permission only when explicitly set (non-empty and not "none")
-            String perm = permissionMap.get(villagerId);
-            if (perm == null) {
-                perm = dataContainer.get(PERMISSION_KEY, PersistentDataType.STRING);
-            }
-            if (perm != null && !perm.isBlank() && !perm.equalsIgnoreCase("none")) {
-                dataContainer.set(PERMISSION_KEY, PersistentDataType.STRING, perm);
-                permissionMap.put(villagerId, perm);
-            } else {
-                dataContainer.remove(PERMISSION_KEY);
-                permissionMap.remove(villagerId);
-            }
-
-            wrapper.logDebug("Stored data for villager " + villager.getUniqueId());
+            storeVillagerDataSync(villager);
         });
+    }
+
+    /**
+     * Synchronously stores villager data to persistent data container.
+     * Used during plugin disable to ensure data is saved before shutdown.
+     *
+     * @param villager The Villager entity whose data is to be stored.
+     */
+    public void storeVillagerDataSync(Villager villager) {
+        UUID villagerId = villager.getUniqueId();
+        int tradeCount = villager.getRecipes().size();
+
+        wrapper.logDebug("Storing data for villager " + villagerId + " (trades: " + tradeCount + ")");
+
+        PersistentDataContainer dataContainer = villager.getPersistentDataContainer();
+
+        boolean managed = isVillagerManaged(villager);
+        staticMap.put(villagerId, managed);
+
+        dataContainer.set(STATIC_KEY, PersistentDataType.STRING, Boolean.toString(managed));
+        dataContainer.set(PROFESSION_KEY, PersistentDataType.STRING, villager.getProfession().name());
+        String tradesData = serializeMerchantRecipes(villager.getRecipes());
+        dataContainer.set(TRADES_KEY, PersistentDataType.STRING, tradesData);
+        // Persist per-villager trade permission only when explicitly set (non-empty and not "none")
+        String perm = permissionMap.get(villagerId);
+        if (perm == null) {
+            perm = dataContainer.get(PERMISSION_KEY, PersistentDataType.STRING);
+        }
+        if (perm != null && !perm.isBlank() && !perm.equalsIgnoreCase("none")) {
+            dataContainer.set(PERMISSION_KEY, PersistentDataType.STRING, perm);
+            permissionMap.put(villagerId, perm);
+        } else {
+            dataContainer.remove(PERMISSION_KEY);
+            permissionMap.remove(villagerId);
+        }
+
+        wrapper.logDebug("Successfully stored data for villager " + villagerId + " (profession: " + villager.getProfession().name() + ", trades: " + tradeCount + ")");
     }
 
     /**
@@ -156,9 +196,11 @@ public class VillagerEditListener implements Listener {
      */
     public void retrieveVillagerData(Villager villager) {
         foliaLib.getScheduler().runAtEntity(villager, task -> {
-            wrapper.logDebug("Retrieving data for villager " + villager.getUniqueId());
-
             PersistentDataContainer dataContainer = villager.getPersistentDataContainer();
+            String tradesData = dataContainer.get(TRADES_KEY, PersistentDataType.STRING);
+            int tradeCount = tradesData != null ? deserializeMerchantRecipes(tradesData).size() : 0;
+
+            wrapper.logDebug("Retrieving data for villager " + villager.getUniqueId() + " (trades: " + tradeCount + ")");
 
             String staticValue = dataContainer.get(STATIC_KEY, PersistentDataType.STRING);
             UUID villagerId = villager.getUniqueId();
@@ -191,10 +233,9 @@ public class VillagerEditListener implements Listener {
                 permissionMap.put(villagerId, permission);
             }
 
-            String tradesData = dataContainer.get(TRADES_KEY, PersistentDataType.STRING);
             villager.setRecipes(deserializeMerchantRecipes(tradesData));
 
-            wrapper.logDebug("Retrieved data for villager " + villager.getUniqueId());
+            wrapper.logDebug("Successfully retrieved data for villager " + villager.getUniqueId() + " (profession: " + professionName + ", trades: " + tradeCount + ")");
         });
     }
 
