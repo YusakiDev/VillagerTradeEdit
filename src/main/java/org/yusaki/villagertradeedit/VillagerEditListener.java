@@ -756,8 +756,11 @@ public class VillagerEditListener implements Listener {
 
                         // Reopen GUI and refresh label on next tick
                         foliaLib.getScheduler().runNextTick((task2) -> {
-                            player.openInventory(inv);
+                            inventoryMap.put(inv, villager);
+                            int currentPage = pageMap.getOrDefault(inv, 0);
+                            renderPage(villager, inv, currentPage);
                             updatePermissionDisplayItem(inv, villager.getPersistentDataContainer().get(PERMISSION_KEY, PersistentDataType.STRING));
+                            player.openInventory(inv);
                         });
                     });
 
@@ -797,6 +800,9 @@ public class VillagerEditListener implements Listener {
                     }
                     HandlerList.unregisterAll(this);
                     foliaLib.getScheduler().runNextTick((task) -> {
+                        inventoryMap.put(inv, villager);
+                        int currentPage = pageMap.getOrDefault(inv, 0);
+                        renderPage(villager, inv, currentPage);
                         player.openInventory(inv);
                     });
                 }
