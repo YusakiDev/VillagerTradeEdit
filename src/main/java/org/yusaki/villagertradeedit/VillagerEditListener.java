@@ -14,8 +14,10 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.VillagerCareerChangeEvent;
@@ -68,6 +70,7 @@ public class VillagerEditListener implements Listener {
     private final NamespacedKey PROFESSION_KEY;
     private final NamespacedKey TRADES_KEY;
     private final NamespacedKey PERMISSION_KEY;
+    private final NamespacedKey FORCE_SPAWN_KEY;
     FoliaLib foliaLib;
 
 
@@ -79,6 +82,7 @@ public class VillagerEditListener implements Listener {
         PROFESSION_KEY = new NamespacedKey(plugin, "profession");
         TRADES_KEY = new NamespacedKey(plugin, "trades");
         PERMISSION_KEY = new NamespacedKey(plugin, "permission");
+        FORCE_SPAWN_KEY = plugin.getForceSpawnKey();
     }
 
 
@@ -136,6 +140,21 @@ public class VillagerEditListener implements Listener {
                 }
             }
         }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onVillagerSpawn(CreatureSpawnEvent event) {
+        if (!(event.getEntity() instanceof Villager villager)) {
+            return;
+        }
+
+        PersistentDataContainer container = villager.getPersistentDataContainer();
+        if (!container.has(FORCE_SPAWN_KEY, PersistentDataType.BYTE)) {
+            return;
+        }
+
+        event.setCancelled(false);
+        container.remove(FORCE_SPAWN_KEY);
     }
 
 

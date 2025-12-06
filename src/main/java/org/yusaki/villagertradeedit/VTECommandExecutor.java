@@ -3,12 +3,12 @@ package org.yusaki.villagertradeedit;
 import com.tcoded.folialib.FoliaLib;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
 import org.bukkit.util.BlockIterator;
@@ -17,6 +17,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,12 +29,14 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
     private final FoliaLib foliaLib;
     private final Component prefixComponent;
     private final boolean prefixEnabled;
+    private final NamespacedKey forceSpawnKey;
 
     public VTECommandExecutor(VillagerTradeEdit plugin, VillagerEditListener villagerEditListener) {
         this.plugin = plugin;
         this.wrapper = VillagerTradeEdit.getInstance().wrapper;
         this.villagerEditListener = villagerEditListener;
         this.foliaLib = plugin.getFoliaLib();
+        this.forceSpawnKey = plugin.getForceSpawnKey();
 
         String prefixRaw = wrapper.getMessage("prefix");
         if (prefixRaw == null || prefixRaw.isBlank()) {
@@ -83,7 +86,8 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
                     spawnLocation.setX(Math.floor(spawnLocation.getX()) + 0.5);
                     spawnLocation.setZ(Math.floor(spawnLocation.getZ()) + 0.5);
 
-                    Villager villager = (Villager) player.getWorld().spawnEntity(spawnLocation, EntityType.VILLAGER);
+                    Villager villager = player.getWorld().spawn(spawnLocation, Villager.class, spawned ->
+                            spawned.getPersistentDataContainer().set(forceSpawnKey, PersistentDataType.BYTE, (byte) 1));
                     foliaLib.getScheduler().runAtEntity(villager, task -> {
                         villagerEditListener.activateStaticMode(villager, player);
                         villager.teleportAsync(spawnLocation);

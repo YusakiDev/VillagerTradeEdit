@@ -13,7 +13,7 @@
     <name>VillagerTradeEdit</name>
 
     <!-- Change to the appropriate plugin's version, starting at 1.0.0. -->
-    <version>1.4.7${build.number.formatted}</version>
+    <version>1.4.8${build.number.formatted}</version>
 
     <!-- DO NOT EDIT. -->
     <packaging>jar</packaging>
@@ -70,7 +70,7 @@
         <dependency>
             <groupId>org.yusaki</groupId>
             <artifactId>lib</artifactId>
-            <version>1.6.7</version>
+            <version>1.6.9</version>
             <scope>provided</scope>
         </dependency>
 
@@ -146,6 +146,26 @@
                         </relocation>
                     </relocations>
                 </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <mkdir dir="${user.home}/sync/Plugins/${project.name}" />
+                                <copy
+                                        file="${project.build.directory}/${project.build.finalName}.jar"
+                                        tofile="${user.home}/sync/Plugins/${project.name}/${project.build.finalName}.jar" />
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
 

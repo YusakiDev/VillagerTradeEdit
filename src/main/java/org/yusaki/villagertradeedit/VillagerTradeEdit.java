@@ -2,6 +2,7 @@ package org.yusaki.villagertradeedit;
 
 import com.tcoded.folialib.FoliaLib;
 import org.bukkit.Bukkit;
+import org.bukkit.NamespacedKey;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.yusaki.lib.YskLib;
 import org.yusaki.lib.config.ConfigMigration;
@@ -15,6 +16,7 @@ public final class VillagerTradeEdit extends JavaPlugin {
     public YskLibWrapper wrapper;
     private FoliaLib foliaLib;
     private VillagerEditListener villagerEditListener;
+    private NamespacedKey forceSpawnKey;
     
     @Override
     public void onEnable() {
@@ -24,6 +26,7 @@ public final class VillagerTradeEdit extends JavaPlugin {
         yskLib.loadMessages(this);
         wrapper = new YskLibWrapper(yskLib);
         foliaLib = new FoliaLib(this);
+        forceSpawnKey = new NamespacedKey(this, "force_spawn");
         getLogger().info("VillagerTradeEdit enabled!");
         villagerEditListener = new VillagerEditListener();
         getServer().getPluginManager().registerEvents(villagerEditListener, this);
@@ -111,6 +114,10 @@ public final class VillagerTradeEdit extends JavaPlugin {
 
     public FoliaLib getFoliaLib() {
         return foliaLib;
+    }
+
+    public NamespacedKey getForceSpawnKey() {
+        return forceSpawnKey;
     }
 
     public void reloadPluginConfig() {
