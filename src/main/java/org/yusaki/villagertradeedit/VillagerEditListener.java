@@ -53,6 +53,19 @@ import java.util.*;
  */
 public class VillagerEditListener implements Listener {
 
+    // GUI Slot Layout Constants
+    // Layout: [Prev][Page][Next] [Prof][Type][Level][Name][Perm] [Del]
+    //          27    28    29     30    31    32     33    34     35
+    private static final int SLOT_PREV = 27;
+    private static final int SLOT_PAGE = 28;
+    private static final int SLOT_NEXT = 29;
+    private static final int SLOT_PROFESSION = 30;
+    private static final int SLOT_TYPE = 31;
+    private static final int SLOT_LEVEL = 32;
+    private static final int SLOT_NAME = 33;
+    private static final int SLOT_PERMISSION = 34;
+    private static final int SLOT_DELETE = 35;
+
     private VillagerTradeEdit plugin;
     YskLibWrapper wrapper;
     private final Map<Inventory, Villager> inventoryMap = new HashMap<>();
@@ -429,7 +442,7 @@ public class VillagerEditListener implements Listener {
         pm.displayName(Component.text("Prev", NamedTextColor.GOLD));
         pm.lore(List.of(Component.text("Previous page", NamedTextColor.GRAY)));
         prev.setItemMeta(pm);
-        inv.setItem(27, prev);
+        inv.setItem(SLOT_PREV, prev);
 
         // Page indicator at 28 - set via updatePageIndicator()
 
@@ -439,11 +452,11 @@ public class VillagerEditListener implements Listener {
         nm.displayName(Component.text("Next", NamedTextColor.GOLD));
         nm.lore(List.of(Component.text("Next page", NamedTextColor.GRAY)));
         next.setItemMeta(nm);
-        inv.setItem(29, next);
+        inv.setItem(SLOT_NEXT, next);
 
         // Villager properties (center: 30-34)
         // Profession at 30
-        inv.setItem(30, new ItemStack(Material.LEATHER_CHESTPLATE));
+        inv.setItem(SLOT_PROFESSION, new ItemStack(Material.LEATHER_CHESTPLATE));
 
         foliaLib.getScheduler().runAtEntity(villager, task -> {
             // Profession at 30
@@ -470,7 +483,7 @@ public class VillagerEditListener implements Listener {
         dm.displayName(Component.text("Delete Villager", NamedTextColor.RED));
         dm.lore(List.of(Component.text("Click to remove this villager", NamedTextColor.GRAY)));
         delete.setItemMeta(dm);
-        inv.setItem(35, delete);
+        inv.setItem(SLOT_DELETE, delete);
     }
 
     private void updatePageIndicator(Inventory inv, int page, int totalPages) {
@@ -478,7 +491,7 @@ public class VillagerEditListener implements Listener {
         ItemMeta meta = indicator.getItemMeta();
         meta.displayName(styledLabel("Page", (page + 1) + "/" + totalPages));
         indicator.setItemMeta(meta);
-        inv.setItem(28, indicator);
+        inv.setItem(SLOT_PAGE, indicator);
     }
 
     private int countNonEmptyRows(List<RecipeRow> rows) {
@@ -686,12 +699,12 @@ public class VillagerEditListener implements Listener {
     }
 
     private void updatePermissionDisplayItem(Inventory inv, String permission) {
-        if (inv == null || inv.getSize() <= 29) {
-            wrapper.logWarn("Inventory size is invalid or does not contain slot 29.");
+        if (inv == null || inv.getSize() <= SLOT_PERMISSION) {
+            wrapper.logWarn("Inventory size is invalid or does not contain permission slot.");
             return;
         }
 
-        ItemStack setPermissionItem = inv.getItem(29);
+        ItemStack setPermissionItem = inv.getItem(SLOT_PERMISSION);
         if (setPermissionItem == null || setPermissionItem.getType() == Material.BLACK_STAINED_GLASS_PANE) {
             setPermissionItem = new ItemStack(Material.WRITABLE_BOOK);
         }
@@ -700,7 +713,7 @@ public class VillagerEditListener implements Listener {
         setPermissionMeta.displayName(styledLabel("Permission", value));
         setPermissionMeta.lore(List.of(Component.text("Click to set required permission", NamedTextColor.GRAY)));
         setPermissionItem.setItemMeta(setPermissionMeta);
-        inv.setItem(34, setPermissionItem);
+        inv.setItem(SLOT_PERMISSION, setPermissionItem);
     }
 
 
@@ -741,11 +754,8 @@ public class VillagerEditListener implements Listener {
             event.setCancelled(true);
         }
 
-        // New layout: [Prev][Page][Next] [Prof][Type][Level][Name][Perm] [Del]
-        //              27    28    29     30    31    32     33    34     35
-
         // Navigation
-        if (raw == 27 && clickedItem != null) {
+        if (raw == SLOT_PREV && clickedItem != null) {
             // Prev page
             syncVisiblePageToBuffer(villager, inv);
             int page = Math.max(0, pageMap.getOrDefault(inv, 0) - 1);
@@ -753,8 +763,8 @@ public class VillagerEditListener implements Listener {
             renderPage(villager, inv, page);
             event.setCancelled(true);
         }
-        // Slot 28 is page indicator (no click action)
-        if (raw == 29 && clickedItem != null) {
+        // SLOT_PAGE is page indicator (no click action)
+        if (raw == SLOT_NEXT && clickedItem != null) {
             // Next page
             syncVisiblePageToBuffer(villager, inv);
             int total = computeTotalPages(villager);
@@ -765,29 +775,29 @@ public class VillagerEditListener implements Listener {
         }
 
         // Villager properties
-        if (raw == 30 && clickedItem != null) {
+        if (raw == SLOT_PROFESSION && clickedItem != null) {
             handleProfessionChange(villager, player, inv);
             event.setCancelled(true);
         }
-        if (raw == 31 && clickedItem != null) {
+        if (raw == SLOT_TYPE && clickedItem != null) {
             handleTypeChange(villager, player, inv);
             event.setCancelled(true);
         }
-        if (raw == 32 && clickedItem != null) {
+        if (raw == SLOT_LEVEL && clickedItem != null) {
             handleLevelChange(villager, player, inv);
             event.setCancelled(true);
         }
-        if (raw == 33 && clickedItem != null) {
+        if (raw == SLOT_NAME && clickedItem != null) {
             handleSetName(villager, player, inv);
             event.setCancelled(true);
         }
-        if (raw == 34 && clickedItem != null) {
+        if (raw == SLOT_PERMISSION && clickedItem != null) {
             handleSetPermission(villager, player, inv);
             event.setCancelled(true);
         }
 
         // Delete
-        if (raw == 35 && clickedItem != null) {
+        if (raw == SLOT_DELETE && clickedItem != null) {
             handleDeleteVillager(villager, player, inv);
             event.setCancelled(true);
         }
@@ -1110,7 +1120,7 @@ public class VillagerEditListener implements Listener {
      * @param nextProfession The Profession object representing the next profession for the Villager entity.
      */
     private void updateProfessionDisplayItem(Inventory inv, Villager.Profession nextProfession) {
-        ItemStack changeProfessionItem = inv.getItem(27);
+        ItemStack changeProfessionItem = inv.getItem(SLOT_PROFESSION);
         if (changeProfessionItem == null) {
             changeProfessionItem = new ItemStack(Material.LEATHER_CHESTPLATE);
         }
@@ -1118,11 +1128,11 @@ public class VillagerEditListener implements Listener {
         meta.displayName(styledLabel("Profession", toTitleCase(nextProfession.name())));
         meta.lore(List.of(Component.text("Click to change profession", NamedTextColor.GRAY)));
         changeProfessionItem.setItemMeta(meta);
-        inv.setItem(30, changeProfessionItem);
+        inv.setItem(SLOT_PROFESSION, changeProfessionItem);
     }
 
     /**
-     * Updates the type display item in the inventory (slot 30).
+     * Updates the type display item in the inventory (SLOT_TYPE).
      *
      * @param inv  The Inventory object.
      * @param type The villager type to display.
@@ -1133,11 +1143,11 @@ public class VillagerEditListener implements Listener {
         meta.displayName(styledLabel("Type", toTitleCase(type.name())));
         meta.lore(List.of(Component.text("Click to change biome appearance", NamedTextColor.GRAY)));
         typeItem.setItemMeta(meta);
-        inv.setItem(31, typeItem);
+        inv.setItem(SLOT_TYPE, typeItem);
     }
 
     /**
-     * Updates the level display item in the inventory (slot 34).
+     * Updates the level display item in the inventory (SLOT_LEVEL).
      *
      * @param inv   The Inventory object.
      * @param level The villager level to display.
@@ -1148,7 +1158,7 @@ public class VillagerEditListener implements Listener {
         meta.displayName(styledLabel("Level", getLevelName(level)));
         meta.lore(List.of(Component.text("Click to change trading level", NamedTextColor.GRAY)));
         levelItem.setItemMeta(meta);
-        inv.setItem(32, levelItem);
+        inv.setItem(SLOT_LEVEL, levelItem);
     }
 
     /**
@@ -1202,7 +1212,7 @@ public class VillagerEditListener implements Listener {
         setNameMeta.displayName(label);
         setNameMeta.lore(List.of(Component.text("Click to set custom name", NamedTextColor.GRAY)));
         setNameItem.setItemMeta(setNameMeta);
-        inv.setItem(33, setNameItem);
+        inv.setItem(SLOT_NAME, setNameItem);
     }
 
     private String getPlainName(Villager villager) {
