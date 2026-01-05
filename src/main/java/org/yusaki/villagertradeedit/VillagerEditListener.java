@@ -3,6 +3,7 @@ package org.yusaki.villagertradeedit;
 import com.destroystokyo.paper.event.entity.EntityPathfindEvent;
 import com.tcoded.folialib.FoliaLib;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -70,6 +71,8 @@ public class VillagerEditListener implements Listener {
     private final NamespacedKey PROFESSION_KEY;
     private final NamespacedKey TRADES_KEY;
     private final NamespacedKey PERMISSION_KEY;
+    private final NamespacedKey TYPE_KEY;
+    private final NamespacedKey LEVEL_KEY;
     private final NamespacedKey FORCE_SPAWN_KEY;
     FoliaLib foliaLib;
 
@@ -82,6 +85,8 @@ public class VillagerEditListener implements Listener {
         PROFESSION_KEY = new NamespacedKey(plugin, "profession");
         TRADES_KEY = new NamespacedKey(plugin, "trades");
         PERMISSION_KEY = new NamespacedKey(plugin, "permission");
+        TYPE_KEY = new NamespacedKey(plugin, "type");
+        LEVEL_KEY = new NamespacedKey(plugin, "level");
         FORCE_SPAWN_KEY = plugin.getForceSpawnKey();
     }
 
@@ -189,6 +194,8 @@ public class VillagerEditListener implements Listener {
 
         dataContainer.set(STATIC_KEY, PersistentDataType.STRING, Boolean.toString(managed));
         dataContainer.set(PROFESSION_KEY, PersistentDataType.STRING, villager.getProfession().name());
+        dataContainer.set(TYPE_KEY, PersistentDataType.STRING, villager.getVillagerType().name());
+        dataContainer.set(LEVEL_KEY, PersistentDataType.INTEGER, villager.getVillagerLevel());
         String tradesData = serializeMerchantRecipes(villager.getRecipes());
         dataContainer.set(TRADES_KEY, PersistentDataType.STRING, tradesData);
         // Persist per-villager trade permission only when explicitly set (non-empty and not "none")
@@ -243,6 +250,22 @@ public class VillagerEditListener implements Listener {
                 } finally {
                     allowCareerChange.remove(villager.getUniqueId());
                 }
+            }
+
+            // Restore villager type (biome appearance)
+            String typeName = dataContainer.get(TYPE_KEY, PersistentDataType.STRING);
+            if (typeName != null) {
+                try {
+                    villager.setVillagerType(Villager.Type.valueOf(typeName));
+                } catch (IllegalArgumentException e) {
+                    wrapper.logDebug("Invalid villager type: " + typeName);
+                }
+            }
+
+            // Restore villager level
+            Integer level = dataContainer.get(LEVEL_KEY, PersistentDataType.INTEGER);
+            if (level != null) {
+                villager.setVillagerLevel(level);
             }
 
             String permission = dataContainer.get(PERMISSION_KEY, PersistentDataType.STRING);
@@ -393,41 +416,59 @@ public class VillagerEditListener implements Listener {
     }
 
     private void setupControls(Inventory inv, Villager villager) {
+        // New layout: [Prev][Page][Next] [Prof][Type][Level][Name][Perm] [Del]
+        //              27    28    29     30    31    32     33    34     35
         for (int i = 27; i < inv.getSize(); i++) {
             inv.setItem(i, new ItemStack(Material.BLACK_STAINED_GLASS_PANE));
         }
 
-        // Profession at 27
-        inv.setItem(27, new ItemStack(Material.LEATHER_CHESTPLATE));
+        // Navigation (left side: 27-29)
+        // Previous page button (slot 27)
+        ItemStack prev = new ItemStack(Material.ARROW);
+        ItemMeta pm = prev.getItemMeta();
+        pm.displayName(Component.text("Prev", NamedTextColor.GOLD));
+        pm.lore(List.of(Component.text("Previous page", NamedTextColor.GRAY)));
+        prev.setItemMeta(pm);
+        inv.setItem(27, prev);
+
+        // Page indicator at 28 - set via updatePageIndicator()
+
+        // Next page button (slot 29)
+        ItemStack next = new ItemStack(Material.ARROW);
+        ItemMeta nm = next.getItemMeta();
+        nm.displayName(Component.text("Next", NamedTextColor.GOLD));
+        nm.lore(List.of(Component.text("Next page", NamedTextColor.GRAY)));
+        next.setItemMeta(nm);
+        inv.setItem(29, next);
+
+        // Villager properties (center: 30-34)
+        // Profession at 30
+        inv.setItem(30, new ItemStack(Material.LEATHER_CHESTPLATE));
 
         foliaLib.getScheduler().runAtEntity(villager, task -> {
-            // Show pending profession if available, otherwise current profession
+            // Profession at 30
             Villager.Profession displayProfession = pendingProfessionMap.getOrDefault(villager, villager.getProfession());
             updateProfessionDisplayItem(inv, displayProfession);
 
-            // Name at 28
+            // Type at 31
+            updateTypeDisplayItem(inv, villager.getVillagerType());
+
+            // Level at 32
+            updateLevelDisplayItem(inv, villager.getVillagerLevel());
+
+            // Name at 33
             updateNameDisplayItem(inv, villager.customName());
 
-            // Permission at 29
+            // Permission at 34
             String currentPerm = villager.getPersistentDataContainer().get(PERMISSION_KEY, PersistentDataType.STRING);
             updatePermissionDisplayItem(inv, currentPerm);
         });
 
-        ItemStack prev = new ItemStack(Material.ARROW);
-        ItemMeta pm = prev.getItemMeta();
-        pm.displayName(Component.text("Prev"));
-        prev.setItemMeta(pm);
-        inv.setItem(32, prev);
-        ItemStack next = new ItemStack(Material.ARROW);
-        ItemMeta nm = next.getItemMeta();
-        nm.displayName(Component.text("Next"));
-        next.setItemMeta(nm);
-        inv.setItem(33, next);
-
-        // Slot 35: Delete villager (barrier)
+        // Delete (right side: 35)
         ItemStack delete = new ItemStack(Material.BARRIER);
         ItemMeta dm = delete.getItemMeta();
-        dm.displayName(Component.text("Delete Villager"));
+        dm.displayName(Component.text("Delete Villager", NamedTextColor.RED));
+        dm.lore(List.of(Component.text("Click to remove this villager", NamedTextColor.GRAY)));
         delete.setItemMeta(dm);
         inv.setItem(35, delete);
     }
@@ -435,9 +476,9 @@ public class VillagerEditListener implements Listener {
     private void updatePageIndicator(Inventory inv, int page, int totalPages) {
         ItemStack indicator = new ItemStack(Material.PAPER);
         ItemMeta meta = indicator.getItemMeta();
-        meta.displayName(Component.text("Page " + (page + 1) + "/" + totalPages));
+        meta.displayName(styledLabel("Page", (page + 1) + "/" + totalPages));
         indicator.setItemMeta(meta);
-        inv.setItem(31, indicator);
+        inv.setItem(28, indicator);
     }
 
     private int countNonEmptyRows(List<RecipeRow> rows) {
@@ -655,10 +696,11 @@ public class VillagerEditListener implements Listener {
             setPermissionItem = new ItemStack(Material.WRITABLE_BOOK);
         }
         ItemMeta setPermissionMeta = setPermissionItem.getItemMeta();
-        String label = (permission == null || permission.isBlank() || permission.equalsIgnoreCase("none")) ? "(none)" : permission;
-        setPermissionMeta.displayName(Component.text("Permission: " + label));
+        String value = (permission == null || permission.isBlank() || permission.equalsIgnoreCase("none")) ? "(none)" : permission;
+        setPermissionMeta.displayName(styledLabel("Permission", value));
+        setPermissionMeta.lore(List.of(Component.text("Click to set required permission", NamedTextColor.GRAY)));
         setPermissionItem.setItemMeta(setPermissionMeta);
-        inv.setItem(29, setPermissionItem);
+        inv.setItem(34, setPermissionItem);
     }
 
 
@@ -699,29 +741,21 @@ public class VillagerEditListener implements Listener {
             event.setCancelled(true);
         }
 
-        if (raw == 27 && clickedItem != null) {
-            handleProfessionChange(villager, player, inv);
-            event.setCancelled(true);
-        }
+        // New layout: [Prev][Page][Next] [Prof][Type][Level][Name][Perm] [Del]
+        //              27    28    29     30    31    32     33    34     35
 
-        if (raw == 28 && clickedItem != null) {
-            handleSetName(villager, player, inv);
-            event.setCancelled(true);
-        }
-        if (raw == 29 && clickedItem != null) {
-            handleSetPermission(villager, player, inv);
-            event.setCancelled(true);
-        }
-        if (raw == 32 && clickedItem != null) {
-            // sync current page before switching
+        // Navigation
+        if (raw == 27 && clickedItem != null) {
+            // Prev page
             syncVisiblePageToBuffer(villager, inv);
             int page = Math.max(0, pageMap.getOrDefault(inv, 0) - 1);
             pageMap.put(inv, page);
             renderPage(villager, inv, page);
             event.setCancelled(true);
         }
-        if (raw == 33 && clickedItem != null) {
-            // sync current page before switching
+        // Slot 28 is page indicator (no click action)
+        if (raw == 29 && clickedItem != null) {
+            // Next page
             syncVisiblePageToBuffer(villager, inv);
             int total = computeTotalPages(villager);
             int page = Math.min(total - 1, pageMap.getOrDefault(inv, 0) + 1);
@@ -729,6 +763,30 @@ public class VillagerEditListener implements Listener {
             renderPage(villager, inv, page);
             event.setCancelled(true);
         }
+
+        // Villager properties
+        if (raw == 30 && clickedItem != null) {
+            handleProfessionChange(villager, player, inv);
+            event.setCancelled(true);
+        }
+        if (raw == 31 && clickedItem != null) {
+            handleTypeChange(villager, player, inv);
+            event.setCancelled(true);
+        }
+        if (raw == 32 && clickedItem != null) {
+            handleLevelChange(villager, player, inv);
+            event.setCancelled(true);
+        }
+        if (raw == 33 && clickedItem != null) {
+            handleSetName(villager, player, inv);
+            event.setCancelled(true);
+        }
+        if (raw == 34 && clickedItem != null) {
+            handleSetPermission(villager, player, inv);
+            event.setCancelled(true);
+        }
+
+        // Delete
         if (raw == 35 && clickedItem != null) {
             handleDeleteVillager(villager, player, inv);
             event.setCancelled(true);
@@ -969,31 +1027,182 @@ public class VillagerEditListener implements Listener {
     }
 
     /**
+     * Gets the next villager type (biome appearance) in a cyclic order.
+     *
+     * @param currentType The current type of the villager.
+     * @return The next type in the cycle.
+     */
+    private Villager.Type getNextType(Villager.Type currentType) {
+        Villager.Type[] types = new Villager.Type[]{
+                Villager.Type.DESERT,
+                Villager.Type.JUNGLE,
+                Villager.Type.PLAINS,
+                Villager.Type.SAVANNA,
+                Villager.Type.SNOW,
+                Villager.Type.SWAMP,
+                Villager.Type.TAIGA
+        };
+
+        int idx = 0;
+        for (int i = 0; i < types.length; i++) {
+            if (types[i] == currentType) {
+                idx = i;
+                break;
+            }
+        }
+        return types[(idx + 1) % types.length];
+    }
+
+    /**
+     * Gets the next villager level in a cyclic order (1-5).
+     *
+     * @param currentLevel The current level of the villager.
+     * @return The next level (wraps from 5 back to 1).
+     */
+    private int getNextLevel(int currentLevel) {
+        return (currentLevel % 5) + 1;
+    }
+
+    /**
+     * Gets the display name for a villager level.
+     *
+     * @param level The villager level (1-5).
+     * @return The display name for the level.
+     */
+    private String getLevelName(int level) {
+        return switch (level) {
+            case 1 -> "Novice";
+            case 2 -> "Apprentice";
+            case 3 -> "Journeyman";
+            case 4 -> "Expert";
+            case 5 -> "Master";
+            default -> "Unknown";
+        };
+    }
+
+    /**
+     * Creates a styled component with gold label and white value.
+     *
+     * @param label The label text.
+     * @param value The value text.
+     * @return A styled Component.
+     */
+    private Component styledLabel(String label, String value) {
+        return Component.text(label + ": ", NamedTextColor.GOLD)
+                .append(Component.text(value, NamedTextColor.WHITE));
+    }
+
+    /**
+     * Formats an enum name to title case (e.g., PLAINS -> Plains).
+     *
+     * @param name The enum name in uppercase.
+     * @return The formatted name in title case.
+     */
+    private String toTitleCase(String name) {
+        if (name == null || name.isEmpty()) return name;
+        return name.charAt(0) + name.substring(1).toLowerCase();
+    }
+
+    /**
      * Updates the display item in the inventory to reflect the new profession.
      *
      * @param inv            The Inventory object associated with the Villager entity.
      * @param nextProfession The Profession object representing the next profession for the Villager entity.
      */
     private void updateProfessionDisplayItem(Inventory inv, Villager.Profession nextProfession) {
-
         ItemStack changeProfessionItem = inv.getItem(27);
+        if (changeProfessionItem == null) {
+            changeProfessionItem = new ItemStack(Material.LEATHER_CHESTPLATE);
+        }
         ItemMeta meta = changeProfessionItem.getItemMeta();
-        String professionName = nextProfession.name();
-        meta.displayName(Component.text("(" + professionName + ")"));
+        meta.displayName(styledLabel("Profession", toTitleCase(nextProfession.name())));
+        meta.lore(List.of(Component.text("Click to change profession", NamedTextColor.GRAY)));
         changeProfessionItem.setItemMeta(meta);
+        inv.setItem(30, changeProfessionItem);
     }
 
-    // Static UI removed
+    /**
+     * Updates the type display item in the inventory (slot 30).
+     *
+     * @param inv  The Inventory object.
+     * @param type The villager type to display.
+     */
+    private void updateTypeDisplayItem(Inventory inv, Villager.Type type) {
+        ItemStack typeItem = new ItemStack(Material.GRASS_BLOCK);
+        ItemMeta meta = typeItem.getItemMeta();
+        meta.displayName(styledLabel("Type", toTitleCase(type.name())));
+        meta.lore(List.of(Component.text("Click to change biome appearance", NamedTextColor.GRAY)));
+        typeItem.setItemMeta(meta);
+        inv.setItem(31, typeItem);
+    }
+
+    /**
+     * Updates the level display item in the inventory (slot 34).
+     *
+     * @param inv   The Inventory object.
+     * @param level The villager level to display.
+     */
+    private void updateLevelDisplayItem(Inventory inv, int level) {
+        ItemStack levelItem = new ItemStack(Material.EXPERIENCE_BOTTLE);
+        ItemMeta meta = levelItem.getItemMeta();
+        meta.displayName(styledLabel("Level", getLevelName(level)));
+        meta.lore(List.of(Component.text("Click to change trading level", NamedTextColor.GRAY)));
+        levelItem.setItemMeta(meta);
+        inv.setItem(32, levelItem);
+    }
+
+    /**
+     * Handles type change when the type button is clicked.
+     *
+     * @param villager The villager entity.
+     * @param player   The player who clicked.
+     * @param inv      The inventory.
+     */
+    private void handleTypeChange(Villager villager, Player player, Inventory inv) {
+        foliaLib.getScheduler().runAtEntity(villager, task -> {
+            Villager.Type currentType = villager.getVillagerType();
+            Villager.Type nextType = getNextType(currentType);
+            villager.setVillagerType(nextType);
+            villager.getPersistentDataContainer().set(TYPE_KEY, PersistentDataType.STRING, nextType.name());
+
+            foliaLib.getScheduler().runNextTick(t -> {
+                updateTypeDisplayItem(inv, nextType);
+            });
+        });
+        tradeAlteredMap.put(inv, true);
+    }
+
+    /**
+     * Handles level change when the level button is clicked.
+     *
+     * @param villager The villager entity.
+     * @param player   The player who clicked.
+     * @param inv      The inventory.
+     */
+    private void handleLevelChange(Villager villager, Player player, Inventory inv) {
+        foliaLib.getScheduler().runAtEntity(villager, task -> {
+            int currentLevel = villager.getVillagerLevel();
+            int nextLevel = getNextLevel(currentLevel);
+            villager.setVillagerLevel(nextLevel);
+            villager.getPersistentDataContainer().set(LEVEL_KEY, PersistentDataType.INTEGER, nextLevel);
+
+            foliaLib.getScheduler().runNextTick(t -> {
+                updateLevelDisplayItem(inv, nextLevel);
+            });
+        });
+        tradeAlteredMap.put(inv, true);
+    }
 
     private void updateNameDisplayItem(Inventory inv, Component nameComp) {
         ItemStack setNameItem = new ItemStack(Material.NAME_TAG);
         ItemMeta setNameMeta = setNameItem.getItemMeta();
         Component label = (nameComp == null)
-                ? Component.text("Name: (none)")
-                : Component.text("Name: ").append(nameComp);
+                ? styledLabel("Name", "(none)")
+                : Component.text("Name: ", NamedTextColor.GOLD).append(nameComp);
         setNameMeta.displayName(label);
+        setNameMeta.lore(List.of(Component.text("Click to set custom name", NamedTextColor.GRAY)));
         setNameItem.setItemMeta(setNameMeta);
-        inv.setItem(28, setNameItem);
+        inv.setItem(33, setNameItem);
     }
 
     private String getPlainName(Villager villager) {
