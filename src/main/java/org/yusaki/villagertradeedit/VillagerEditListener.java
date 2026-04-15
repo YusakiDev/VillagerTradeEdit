@@ -77,6 +77,8 @@ public class VillagerEditListener implements Listener {
     private final Map<Villager, Villager.Profession> pendingProfessionMap = new HashMap<>();
     // Allows profession change events initiated by the plugin to pass
     private final Set<UUID> allowCareerChange = new HashSet<>();
+    // Inventories whose close is internal (chat prompt round-trip): preserve buffer + state, skip save
+    private final Set<Inventory> suspendedInventories = new HashSet<>();
     // Tracks temporarily removed Hero of the Village effects per player during trading
     private final Map<UUID, PotionEffect> removedHotv = new HashMap<>();
 
@@ -816,7 +818,7 @@ public class VillagerEditListener implements Listener {
     // Save button removed; saving occurs automatically on inventory close
 
     private void handleSetPermission(Villager villager, Player player, Inventory inv) {
-
+        suspendedInventories.add(inv);
         player.closeInventory();
         // Prompt the player to enter the new permission
         wrapper.sendMessage(player, "enterPermissionPrompt");
@@ -859,6 +861,7 @@ public class VillagerEditListener implements Listener {
     }
 
     private void handleSetName(Villager villager, Player player, Inventory inv) {
+        suspendedInventories.add(inv);
         player.closeInventory();
         wrapper.sendMessage(player, "enterNamePrompt");
         Bukkit.getPluginManager().registerEvents(new Listener() {
@@ -1337,6 +1340,13 @@ public class VillagerEditListener implements Listener {
         if (inventoryMap.containsKey(inv)) {
             Villager villager = inventoryMap.get(inv);
             Player player = (Player) event.getPlayer();
+
+            // Internal close (chat prompt round-trip): capture in-progress edits to the buffer
+            // but keep editor state alive so the same inv can be reopened with full context.
+            if (suspendedInventories.remove(inv)) {
+                syncVisiblePageToBuffer(villager, inv);
+                return;
+            }
 
             // Build new recipes from the visible buffer and save
             syncVisiblePageToBuffer(villager, inv);

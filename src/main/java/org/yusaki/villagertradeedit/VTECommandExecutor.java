@@ -38,16 +38,20 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
         this.foliaLib = plugin.getFoliaLib();
         this.forceSpawnKey = plugin.getForceSpawnKey();
 
-        String prefixRaw = wrapper.getMessage("prefix");
-        if (prefixRaw == null || prefixRaw.isBlank()) {
-            prefixRaw = plugin.getConfig().getString("messages.prefix", "");
+        Component fromYskLib = wrapper.getPrefixComponent();
+        Component resolved = fromYskLib != null ? fromYskLib : Component.empty();
+
+        // Fallback: if YskLib has no prefix (loadMessages not yet run, or section missing),
+        // read directly from config so prefix still renders.
+        if (resolved.equals(Component.empty())) {
+            String fromConfig = plugin.getConfig().getString("messages.prefix", "");
+            if (fromConfig != null && !fromConfig.isBlank()) {
+                resolved = LegacyComponentSerializer.legacyAmpersand().deserialize(fromConfig);
+            }
         }
 
-        boolean hasPrefix = prefixRaw != null && !prefixRaw.isBlank();
-        this.prefixEnabled = hasPrefix;
-        this.prefixComponent = hasPrefix
-                ? LegacyComponentSerializer.legacyAmpersand().deserialize(prefixRaw)
-                : Component.empty();
+        this.prefixEnabled = !resolved.equals(Component.empty());
+        this.prefixComponent = resolved;
     }
 
     @Override

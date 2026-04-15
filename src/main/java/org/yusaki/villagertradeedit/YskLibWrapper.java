@@ -73,6 +73,16 @@ public class YskLibWrapper {
         return messageManager.getMessage(plugin, key);
     }
 
+    // YskLib stores `prefix` in a dedicated slot, not the regular message map —
+    // calling getMessage("prefix") returns the "Message not found" sentinel.
+    String getPrefix() {
+        return messageManager.getPrefix(plugin);
+    }
+
+    net.kyori.adventure.text.Component getPrefixComponent() {
+        return messageManager.getPrefixComponent(plugin);
+    }
+
     String getMessage(String key, Map<String, String> placeholders) {
         return messageManager.getMessage(plugin, key, placeholders);
     }
