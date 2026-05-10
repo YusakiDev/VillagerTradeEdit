@@ -3,10 +3,12 @@
 VillagerTradeEdit lets administrators curate villager trades safely on modern Paper and Folia servers. The plugin focuses on Folia-friendly scheduling, per-player trade sessions, and built-in safeguards against vanilla discount exploits.
 
 ## Supported Software Versions
-- Paper 1.21.x
-- Folia 1.21.x
+- Paper 26.1.x
+- Purpur 26.1.x
+- Folia 26.1.x
+- Canvas 26.1.x
 
-Earlier releases may still work, but only the versions above are exercised alongside the current codebase.
+For 1.21.x servers, use VillagerTradeEdit 1.4.10 instead (see the `mc-1.21` branch and the `v1.4.10` tag).
 
 ## Features
 - Summon plugin-managed "static" villagers that stay centered, invulnerable, and collidable-free.
@@ -17,18 +19,18 @@ Earlier releases may still work, but only the versions above are exercised along
 - Built with FoliaLib to keep every villager interaction region-thread safe.
 
 ## Requirements
-- A compatible YskLib plugin jar (`>= 1.6.4`) installed alongside VillagerTradeEdit.
-- Java 21 runtime.
-- Paper or Folia server 1.21.x.
+- A compatible YskLib plugin jar (`>= 1.9.0`) installed alongside VillagerTradeEdit.
+- Java 25 runtime.
+- Paper, Purpur, Folia, or Canvas server 26.1.x.
 
 ## Installation
 1. Download or build the latest `VillagerTradeEdit-<version>.jar` (see building instructions below).
 2. Place the jar in your server's `plugins/` directory.
-3. Ensure `YskLib-1.6.4.jar` (or newer) is also present in `plugins/`.
+3. Ensure `YskLib-1.9.0.jar` (or newer) is also present in `plugins/`.
 4. Restart or start the server.
 
 ## Building from Source
-1. Obtain `YskLib-1.6.4.jar` locally and update the `systemPath` in `pom.xml` if your path differs from the default.
+1. Obtain `YskLib-1.9.0.jar` locally and update the `systemPath` in `pom.xml` if your path differs from the default.
 2. Run `mvn clean package` to produce a shaded jar in `target/`.
 3. Copy the generated jar to your server's `plugins/` directory.
 
@@ -47,7 +49,7 @@ Earlier releases may still work, but only the versions above are exercised along
 
 ## Configuration
 The first run creates `plugins/VillagerTradeEdit/config.yml` with:
-- `debug` – Enables verbose logging when `true`.
+- `debug` – Verbosity level (0 = severe only, 1 = warn+, 2 = info+, 3 = debug+).
 - `version` – Internal config schema indicator; do not change manually.
 - `enabled-worlds` – Worlds where the plugin may operate.
 - `messages.*` – Chat prefix and localized messages used by YskLib.
