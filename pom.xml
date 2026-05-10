@@ -13,7 +13,7 @@
     <name>VillagerTradeEdit</name>
 
     <!-- Change to the appropriate plugin's version, starting at 1.0.0. -->
-    <version>1.4.10${build.number.formatted}</version>
+    <version>2.0.0${build.number.formatted}</version>
 
     <!-- DO NOT EDIT. -->
     <packaging>jar</packaging>
@@ -33,7 +33,7 @@
              If you use 1.8 then your plugin will work on newer versions, but if you
              use 17 then it will NOT load on servers with previous Java versions.
              -->
-        <java.version>21</java.version>
+        <java.version>25</java.version>
 
         <!-- DO NOT EDIT. -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -64,13 +64,13 @@
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
-            <version>1.21-R0.1-SNAPSHOT</version>
+            <version>26.1.2.build.61-stable</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.yusaki</groupId>
             <artifactId>lib</artifactId>
-            <version>1.6.9</version>
+            <version>1.9.0</version>
             <scope>provided</scope>
         </dependency>
 
@@ -78,7 +78,7 @@
         <dependency>
             <groupId>com.tcoded</groupId>
             <artifactId>FoliaLib</artifactId>
-            <version>0.5.1</version>
+            <version>0.5.2</version>
         </dependency>
     </dependencies>
 
@@ -112,7 +112,7 @@
 
                 <!-- Change version to the latest one from
                      https://mvnrepository.com/artifact/org.apache.maven.plugins/maven-shade-plugin -->
-                <version>3.5.1</version>
+                <version>3.6.2</version>
                 <executions>
                     <execution>
                         <phase>package</phase>

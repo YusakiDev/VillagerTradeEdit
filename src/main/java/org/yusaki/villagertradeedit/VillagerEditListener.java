@@ -7,10 +7,12 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import io.papermc.paper.event.player.AsyncChatEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Registry;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
@@ -25,7 +27,6 @@ import org.bukkit.event.entity.VillagerCareerChangeEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -208,8 +209,8 @@ public class VillagerEditListener implements Listener {
         staticMap.put(villagerId, managed);
 
         dataContainer.set(STATIC_KEY, PersistentDataType.STRING, Boolean.toString(managed));
-        dataContainer.set(PROFESSION_KEY, PersistentDataType.STRING, villager.getProfession().name());
-        dataContainer.set(TYPE_KEY, PersistentDataType.STRING, villager.getVillagerType().name());
+        dataContainer.set(PROFESSION_KEY, PersistentDataType.STRING, villager.getProfession().getKey().getKey());
+        dataContainer.set(TYPE_KEY, PersistentDataType.STRING, villager.getVillagerType().getKey().getKey());
         dataContainer.set(LEVEL_KEY, PersistentDataType.INTEGER, villager.getVillagerLevel());
         String tradesData = serializeMerchantRecipes(villager.getRecipes());
         dataContainer.set(TRADES_KEY, PersistentDataType.STRING, tradesData);
@@ -226,7 +227,7 @@ public class VillagerEditListener implements Listener {
             permissionMap.remove(villagerId);
         }
 
-        wrapper.logDebug("Successfully stored data for villager " + villagerId + " (profession: " + villager.getProfession().name() + ", trades: " + tradeCount + ")");
+        wrapper.logDebug("Successfully stored data for villager " + villagerId + " (profession: " + villager.getProfession().getKey().getKey() + ", trades: " + tradeCount + ")");
     }
 
     /**
@@ -250,29 +251,20 @@ public class VillagerEditListener implements Listener {
             villager.setCollidable(!managed);
 
             String professionName = dataContainer.get(PROFESSION_KEY, PersistentDataType.STRING);
-            if (professionName != null) {
-                allowCareerChange.add(villager.getUniqueId());
-                try {
-                    villager.setProfession(Villager.Profession.valueOf(professionName));
-                } finally {
-                    allowCareerChange.remove(villager.getUniqueId());
-                }
-            } else {
-                // Set a default profession if professionName is null
-                allowCareerChange.add(villager.getUniqueId());
-                try {
-                    villager.setProfession(Villager.Profession.NONE);
-                } finally {
-                    allowCareerChange.remove(villager.getUniqueId());
-                }
+            allowCareerChange.add(villager.getUniqueId());
+            try {
+                villager.setProfession(resolveProfession(professionName));
+            } finally {
+                allowCareerChange.remove(villager.getUniqueId());
             }
 
             // Restore villager type (biome appearance)
             String typeName = dataContainer.get(TYPE_KEY, PersistentDataType.STRING);
             if (typeName != null) {
-                try {
-                    villager.setVillagerType(Villager.Type.valueOf(typeName));
-                } catch (IllegalArgumentException e) {
+                Villager.Type type = resolveVillagerType(typeName);
+                if (type != null) {
+                    villager.setVillagerType(type);
+                } else {
                     wrapper.logDebug("Invalid villager type: " + typeName);
                 }
             }
@@ -824,10 +816,10 @@ public class VillagerEditListener implements Listener {
         wrapper.sendMessage(player, "enterPermissionPrompt");
         Bukkit.getPluginManager().registerEvents(new Listener() {
             @EventHandler
-            public void onPlayerChat(AsyncPlayerChatEvent event) {
+            public void onPlayerChat(AsyncChatEvent event) {
                 if (event.getPlayer().equals(player)) {
                     // Capture and apply new permission
-                    String permission = event.getMessage().trim();
+                    String permission = PlainTextComponentSerializer.plainText().serialize(event.message()).trim();
                     event.setCancelled(true);
 
                     // Apply changes on the villager's region thread for Folia safety
@@ -866,10 +858,10 @@ public class VillagerEditListener implements Listener {
         wrapper.sendMessage(player, "enterNamePrompt");
         Bukkit.getPluginManager().registerEvents(new Listener() {
             @EventHandler
-            public void onPlayerChat(AsyncPlayerChatEvent event) {
+            public void onPlayerChat(AsyncChatEvent event) {
                 if (event.getPlayer().equals(player)) {
                     event.setCancelled(true);
-                    String input = event.getMessage();
+                    String input = PlainTextComponentSerializer.plainText().serialize(event.message());
                     if (input.equalsIgnoreCase("cancel")) {
                         wrapper.sendMessage(player, "nameCancelled");
                     } else if (input.equalsIgnoreCase("none")) {
@@ -955,7 +947,7 @@ public class VillagerEditListener implements Listener {
             try {
                 villager.setProfession(nextProfession);
                 // reflect immediately in PDC so chunk unload/load keeps intended state
-                villager.getPersistentDataContainer().set(PROFESSION_KEY, PersistentDataType.STRING, nextProfession.name());
+                villager.getPersistentDataContainer().set(PROFESSION_KEY, PersistentDataType.STRING, nextProfession.getKey().getKey());
             } finally {
                 allowCareerChange.remove(villager.getUniqueId());
             }
@@ -1113,7 +1105,27 @@ public class VillagerEditListener implements Listener {
      */
     private String toTitleCase(String name) {
         if (name == null || name.isEmpty()) return name;
-        return name.charAt(0) + name.substring(1).toLowerCase();
+        return Character.toUpperCase(name.charAt(0)) + name.substring(1).toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * Resolves a stored profession name to a Villager.Profession via Registry.
+     * Accepts both legacy uppercase names ("FARMER") and lowercase keys ("farmer").
+     * Returns Villager.Profession.NONE for null, empty, or unknown names.
+     */
+    private static Villager.Profession resolveProfession(String stored) {
+        if (stored == null || stored.isEmpty()) return Villager.Profession.NONE;
+        Villager.Profession p = Registry.VILLAGER_PROFESSION.get(NamespacedKey.minecraft(stored.toLowerCase(Locale.ROOT)));
+        return p != null ? p : Villager.Profession.NONE;
+    }
+
+    /**
+     * Resolves a stored villager type name to a Villager.Type via Registry.
+     * Accepts both legacy uppercase names and lowercase keys. Returns null for unknown.
+     */
+    private static Villager.Type resolveVillagerType(String stored) {
+        if (stored == null || stored.isEmpty()) return null;
+        return Registry.VILLAGER_TYPE.get(NamespacedKey.minecraft(stored.toLowerCase(Locale.ROOT)));
     }
 
     /**
@@ -1128,7 +1140,7 @@ public class VillagerEditListener implements Listener {
             changeProfessionItem = new ItemStack(Material.LEATHER_CHESTPLATE);
         }
         ItemMeta meta = changeProfessionItem.getItemMeta();
-        meta.displayName(styledLabel("Profession", toTitleCase(nextProfession.name())));
+        meta.displayName(styledLabel("Profession", toTitleCase(nextProfession.getKey().getKey())));
         meta.lore(List.of(Component.text("Click to change profession", NamedTextColor.GRAY)));
         changeProfessionItem.setItemMeta(meta);
         inv.setItem(SLOT_PROFESSION, changeProfessionItem);
@@ -1143,7 +1155,7 @@ public class VillagerEditListener implements Listener {
     private void updateTypeDisplayItem(Inventory inv, Villager.Type type) {
         ItemStack typeItem = new ItemStack(Material.GRASS_BLOCK);
         ItemMeta meta = typeItem.getItemMeta();
-        meta.displayName(styledLabel("Type", toTitleCase(type.name())));
+        meta.displayName(styledLabel("Type", toTitleCase(type.getKey().getKey())));
         meta.lore(List.of(Component.text("Click to change biome appearance", NamedTextColor.GRAY)));
         typeItem.setItemMeta(meta);
         inv.setItem(SLOT_TYPE, typeItem);
@@ -1176,7 +1188,7 @@ public class VillagerEditListener implements Listener {
             Villager.Type currentType = villager.getVillagerType();
             Villager.Type nextType = getNextType(currentType);
             villager.setVillagerType(nextType);
-            villager.getPersistentDataContainer().set(TYPE_KEY, PersistentDataType.STRING, nextType.name());
+            villager.getPersistentDataContainer().set(TYPE_KEY, PersistentDataType.STRING, nextType.getKey().getKey());
 
             foliaLib.getScheduler().runNextTick(t -> {
                 updateTypeDisplayItem(inv, nextType);
