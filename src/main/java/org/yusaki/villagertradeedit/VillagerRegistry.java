@@ -72,6 +72,7 @@ public class VillagerRegistry {
 
     public synchronized void save() {
         plugin.getDataFolder().mkdirs();
+        boolean wasDirty = dirty.compareAndSet(true, false);
         YamlConfiguration cfg = new YamlConfiguration();
         cfg.set("version", SCHEMA_VERSION);
         cfg.set("nextId", nextId.get());
@@ -87,8 +88,8 @@ public class VillagerRegistry {
         }
         try {
             cfg.save(file);
-            dirty.set(false);
         } catch (IOException ex) {
+            if (wasDirty) dirty.set(true); // restore on failure
             plugin.getLogger().severe("Failed to save villagers.yml: " + ex.getMessage());
         }
     }
@@ -98,7 +99,7 @@ public class VillagerRegistry {
         foliaLib.getScheduler().runAsync(t -> save());
     }
 
-    public int assignId(Villager villager) {
+    public synchronized int assignId(Villager villager) {
         UUID uuid = villager.getUniqueId();
         Integer existing = byUuid.get(uuid);
         if (existing != null) return existing;
@@ -115,7 +116,7 @@ public class VillagerRegistry {
         return id;
     }
 
-    public void updateLocation(UUID uuid, Location loc, String name) {
+    public synchronized void updateLocation(UUID uuid, Location loc, String name) {
         Integer id = byUuid.get(uuid);
         if (id == null) return;
         VillagerEntry existing = byId.get(id);
@@ -129,7 +130,7 @@ public class VillagerRegistry {
         dirty.set(true);
     }
 
-    public void remove(UUID uuid) {
+    public synchronized void remove(UUID uuid) {
         Integer id = byUuid.remove(uuid);
         if (id != null) {
             byId.remove(id);
