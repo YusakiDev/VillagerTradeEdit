@@ -1,14 +1,17 @@
 package org.yusaki.villagertradeedit;
 
 import com.tcoded.folialib.FoliaLib;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
 import org.bukkit.util.BlockIterator;
@@ -204,8 +207,56 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
     }
 
     private boolean handleTpHere(Player player, String[] args) {
-        wrapper.sendMessage(player, "noSelection");
+        if (!requireMovePermission(player)) return true;
+        Integer selectedId = selections.get(player.getUniqueId());
+        if (selectedId == null) {
+            wrapper.sendMessage(player, "noSelection");
+            return true;
+        }
+        VillagerEntry entry = registry.getById(selectedId);
+        if (entry == null) {
+            selections.remove(player.getUniqueId());
+            wrapper.sendMessage(player, "selectionGone");
+            return true;
+        }
+        Location dest = player.getLocation();
+        if (!dest.getWorld().getWorldBorder().isInside(dest)) {
+            wrapper.sendMessage(player, "outsideWorldBorder");
+            return true;
+        }
+        resolveVillager(entry, villager -> {
+            if (villager == null) {
+                selections.remove(player.getUniqueId());
+                wrapper.sendMessage(player, "selectionGone");
+                return;
+            }
+            foliaLib.getScheduler().runAtEntity(villager, t -> {
+                villager.teleportAsync(dest);
+                String name = villager.getCustomName() != null ? villager.getCustomName() : "";
+                registry.updateLocation(villager.getUniqueId(), dest, name);
+                wrapper.sendMessage(player, "villagerMoved", "0", String.valueOf(entry.id()));
+            });
+        });
         return true;
+    }
+
+    private void resolveVillager(VillagerEntry entry, java.util.function.Consumer<Villager> callback) {
+        Entity direct = Bukkit.getEntity(entry.uuid());
+        if (direct instanceof Villager v && v.isValid()) {
+            callback.accept(v);
+            return;
+        }
+        World world = Bukkit.getWorld(entry.world());
+        if (world == null) {
+            callback.accept(null);
+            return;
+        }
+        int chunkX = (int) Math.floor(entry.x()) >> 4;
+        int chunkZ = (int) Math.floor(entry.z()) >> 4;
+        world.getChunkAtAsync(chunkX, chunkZ).thenAccept(chunk -> {
+            Entity retry = Bukkit.getEntity(entry.uuid());
+            callback.accept(retry instanceof Villager vv && vv.isValid() ? vv : null);
+        });
     }
 
     private boolean handleMoveTo(Player player, String[] args) {
