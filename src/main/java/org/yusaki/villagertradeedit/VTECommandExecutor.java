@@ -202,7 +202,45 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
     }
 
     private boolean handleTp(Player player, String[] args) {
-        wrapper.sendMessage(player, "noSelection");
+        if (!requireMovePermission(player)) return true;
+        Integer targetId;
+        if (args.length >= 2) {
+            try {
+                targetId = Integer.parseInt(args[1]);
+            } catch (NumberFormatException ex) {
+                wrapper.sendMessage(player, "villagerIdUnknown", "0", args[1]);
+                return true;
+            }
+        } else {
+            targetId = selections.get(player.getUniqueId());
+            if (targetId == null) {
+                wrapper.sendMessage(player, "noSelection");
+                return true;
+            }
+        }
+        VillagerEntry entry = registry.getById(targetId);
+        if (entry == null) {
+            if (args.length < 2) selections.remove(player.getUniqueId());
+            wrapper.sendMessage(player, "villagerIdUnknown", "0", String.valueOf(targetId));
+            return true;
+        }
+        World world = Bukkit.getWorld(entry.world());
+        if (world == null) {
+            wrapper.sendMessage(player, "worldNotFound", "0", entry.world());
+            return true;
+        }
+        Location dest = new Location(world, entry.x(), entry.y(), entry.z());
+        if (!world.getWorldBorder().isInside(dest)) {
+            wrapper.sendMessage(player, "outsideWorldBorder");
+            return true;
+        }
+        int chunkX = (int) Math.floor(entry.x()) >> 4;
+        int chunkZ = (int) Math.floor(entry.z()) >> 4;
+        world.getChunkAtAsync(chunkX, chunkZ).thenAccept(chunk ->
+                foliaLib.getScheduler().runAtLocation(dest, t -> {
+                    player.teleportAsync(dest);
+                    wrapper.sendMessage(player, "playerTeleported", "0", String.valueOf(entry.id()));
+                }));
         return true;
     }
 
@@ -260,7 +298,63 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
     }
 
     private boolean handleMoveTo(Player player, String[] args) {
-        wrapper.sendMessage(player, "noSelection");
+        if (!requireMovePermission(player)) return true;
+        if (args.length < 4) {
+            wrapper.sendMessage(player, "invalidCoords");
+            return true;
+        }
+        Integer selectedId = selections.get(player.getUniqueId());
+        if (selectedId == null) {
+            wrapper.sendMessage(player, "noSelection");
+            return true;
+        }
+        VillagerEntry entry = registry.getById(selectedId);
+        if (entry == null) {
+            selections.remove(player.getUniqueId());
+            wrapper.sendMessage(player, "selectionGone");
+            return true;
+        }
+        double x, y, z;
+        try {
+            x = Double.parseDouble(args[1]);
+            y = Double.parseDouble(args[2]);
+            z = Double.parseDouble(args[3]);
+        } catch (NumberFormatException ex) {
+            wrapper.sendMessage(player, "invalidCoords");
+            return true;
+        }
+        if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)) {
+            wrapper.sendMessage(player, "invalidCoords");
+            return true;
+        }
+        World world;
+        if (args.length >= 5) {
+            world = Bukkit.getWorld(args[4]);
+            if (world == null) {
+                wrapper.sendMessage(player, "worldNotFound", "0", args[4]);
+                return true;
+            }
+        } else {
+            world = player.getWorld();
+        }
+        Location dest = new Location(world, x, y, z);
+        if (!world.getWorldBorder().isInside(dest)) {
+            wrapper.sendMessage(player, "outsideWorldBorder");
+            return true;
+        }
+        resolveVillager(entry, villager -> {
+            if (villager == null) {
+                selections.remove(player.getUniqueId());
+                wrapper.sendMessage(player, "selectionGone");
+                return;
+            }
+            foliaLib.getScheduler().runAtEntity(villager, t -> {
+                villager.teleportAsync(dest);
+                String name = villager.getCustomName() != null ? villager.getCustomName() : "";
+                registry.updateLocation(villager.getUniqueId(), dest, name);
+                wrapper.sendMessage(player, "villagerMoved", "0", String.valueOf(entry.id()));
+            });
+        });
         return true;
     }
 
