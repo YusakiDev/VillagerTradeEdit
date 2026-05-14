@@ -12,6 +12,8 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
 import org.bukkit.util.BlockIterator;
+import org.bukkit.util.RayTraceResult;
+import org.bukkit.persistence.PersistentDataContainer;
 import org.jetbrains.annotations.NotNull;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -34,6 +36,9 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
     private final boolean prefixEnabled;
     private final NamespacedKey forceSpawnKey;
     private final Map<UUID, Integer> selections = new HashMap<>();
+    private final VillagerRegistry registry;
+    private final NamespacedKey vteIdKey;
+    private final NamespacedKey staticKey;
 
     public VTECommandExecutor(VillagerTradeEdit plugin, VillagerEditListener villagerEditListener) {
         this.plugin = plugin;
@@ -41,6 +46,9 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
         this.villagerEditListener = villagerEditListener;
         this.foliaLib = plugin.getFoliaLib();
         this.forceSpawnKey = plugin.getForceSpawnKey();
+        this.registry = plugin.getVillagerRegistry();
+        this.vteIdKey = plugin.getVteIdKey();
+        this.staticKey = new NamespacedKey(plugin, "static");
 
         Component fromYskLib = wrapper.getPrefixComponent();
         Component resolved = fromYskLib != null ? fromYskLib : Component.empty();
@@ -117,7 +125,97 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        return false;
+        switch (args[0].toLowerCase()) {
+            case "select" -> { return handleSelect(player, args); }
+            case "deselect" -> { return handleDeselect(player); }
+            case "tp" -> { return handleTp(player, args); }
+            case "tphere" -> { return handleTpHere(player, args); }
+            case "moveto" -> { return handleMoveTo(player, args); }
+            case "list" -> { return handleList(player, args); }
+            default -> { return false; }
+        }
+    }
+
+    private boolean requireMovePermission(Player player) {
+        if (!player.hasPermission("villagertradeedit.command.move")) {
+            wrapper.sendMessage(player, "noPermission");
+            return false;
+        }
+        return true;
+    }
+
+    private boolean handleSelect(Player player, String[] args) {
+        if (!requireMovePermission(player)) return true;
+        if (args.length >= 2) {
+            try {
+                int id = Integer.parseInt(args[1]);
+                VillagerEntry entry = registry.getById(id);
+                if (entry == null) {
+                    wrapper.sendMessage(player, "villagerIdUnknown", String.valueOf(id));
+                    return true;
+                }
+                selections.put(player.getUniqueId(), id);
+                wrapper.sendMessage(player, "villagerSelected", String.valueOf(id), entry.name());
+                return true;
+            } catch (NumberFormatException ex) {
+                wrapper.sendMessage(player, "villagerIdUnknown", args[1]);
+                return true;
+            }
+        }
+        if (!wrapper.canExecuteInWorld(player.getWorld())) {
+            wrapper.sendMessage(player, "disabledWorld");
+            return true;
+        }
+        RayTraceResult result = player.getWorld().rayTraceEntities(
+                player.getEyeLocation(),
+                player.getEyeLocation().getDirection(),
+                10.0,
+                e -> e instanceof Villager && !e.equals(player));
+        if (result == null || !(result.getHitEntity() instanceof Villager villager)) {
+            wrapper.sendMessage(player, "noVillagerInSight");
+            return true;
+        }
+        PersistentDataContainer pdc = villager.getPersistentDataContainer();
+        if (!pdc.has(staticKey, PersistentDataType.STRING)) {
+            wrapper.sendMessage(player, "notManagedVillager");
+            return true;
+        }
+        Integer existingId = pdc.get(vteIdKey, PersistentDataType.INTEGER);
+        int id = (existingId != null) ? existingId : registry.assignId(villager);
+        if (existingId == null) {
+            pdc.set(vteIdKey, PersistentDataType.INTEGER, id);
+        }
+        selections.put(player.getUniqueId(), id);
+        String name = villager.getCustomName() != null ? villager.getCustomName() : "";
+        wrapper.sendMessage(player, "villagerSelected", String.valueOf(id), name);
+        return true;
+    }
+
+    private boolean handleDeselect(Player player) {
+        if (!requireMovePermission(player)) return true;
+        selections.remove(player.getUniqueId());
+        wrapper.sendMessage(player, "selectionCleared");
+        return true;
+    }
+
+    private boolean handleTp(Player player, String[] args) {
+        wrapper.sendMessage(player, "noSelection");
+        return true;
+    }
+
+    private boolean handleTpHere(Player player, String[] args) {
+        wrapper.sendMessage(player, "noSelection");
+        return true;
+    }
+
+    private boolean handleMoveTo(Player player, String[] args) {
+        wrapper.sendMessage(player, "noSelection");
+        return true;
+    }
+
+    private boolean handleList(Player player, String[] args) {
+        wrapper.sendMessage(player, "listEmpty");
+        return true;
     }
 
     public Map<UUID, Integer> getSelections() {
