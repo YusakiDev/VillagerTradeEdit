@@ -19,6 +19,8 @@ import org.bukkit.util.RayTraceResult;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.jetbrains.annotations.NotNull;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
@@ -359,7 +361,73 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
     }
 
     private boolean handleList(Player player, String[] args) {
-        wrapper.sendMessage(player, "listEmpty");
+        if (!player.hasPermission("villagertradeedit.command.list")) {
+            wrapper.sendMessage(player, "noPermission");
+            return true;
+        }
+        List<VillagerEntry> all = registry.all();
+        List<VillagerEntry> visible = new ArrayList<>();
+        for (VillagerEntry e : all) {
+            World w = Bukkit.getWorld(e.world());
+            if (w != null && wrapper.canExecuteInWorld(w)) {
+                visible.add(e);
+            }
+        }
+        if (visible.isEmpty()) {
+            wrapper.sendMessage(player, "listEmpty");
+            return true;
+        }
+        int perPage = 10;
+        int total = visible.size();
+        int pages = Math.max(1, (total + perPage - 1) / perPage);
+        int page = 1;
+        if (args.length >= 2) {
+            try {
+                page = Integer.parseInt(args[1]);
+            } catch (NumberFormatException ex) {
+                page = 1;
+            }
+        }
+        if (page < 1) page = 1;
+        if (page > pages) page = pages;
+
+        Map<String, String> headerPh = new HashMap<>();
+        headerPh.put("0", String.valueOf(page));
+        headerPh.put("1", String.valueOf(pages));
+        String header = wrapper.getMessage("listHeader", headerPh);
+        sendPrefixed(player, LegacyComponentSerializer.legacyAmpersand().deserialize(header));
+
+        LegacyComponentSerializer legacy = LegacyComponentSerializer.legacyAmpersand();
+        int start = (page - 1) * perPage;
+        int end = Math.min(start + perPage, total);
+        for (int i = start; i < end; i++) {
+            VillagerEntry e = visible.get(i);
+            Map<String, String> rowPh = new HashMap<>();
+            rowPh.put("0", String.valueOf(e.id()));
+            rowPh.put("1", e.name() == null ? "" : e.name());
+            rowPh.put("2", e.world());
+            rowPh.put("3", String.format("%.1f", e.x()));
+            rowPh.put("4", String.format("%.1f", e.y()));
+            rowPh.put("5", String.format("%.1f", e.z()));
+            String rowText = wrapper.getMessage("listEntry", rowPh);
+            Component row = legacy.deserialize(rowText)
+                    .append(Component.text(" "))
+                    .append(Component.text("[tp]")
+                            .color(NamedTextColor.AQUA)
+                            .decorate(TextDecoration.UNDERLINED)
+                            .clickEvent(ClickEvent.suggestCommand("/vte tp " + e.id()))
+                            .hoverEvent(HoverEvent.showText(Component.text("/vte tp " + e.id()))));
+            sendPrefixed(player, row);
+        }
+
+        if (pages > 1) {
+            Map<String, String> footerPh = new HashMap<>();
+            footerPh.put("0", String.valueOf(page));
+            footerPh.put("1", String.valueOf(pages));
+            footerPh.put("2", String.valueOf(total));
+            String footer = wrapper.getMessage("listFooter", footerPh);
+            sendPrefixed(player, legacy.deserialize(footer));
+        }
         return true;
     }
 
