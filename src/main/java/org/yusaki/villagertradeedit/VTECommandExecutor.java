@@ -454,6 +454,18 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
         sendPrefixed(player, Component.text("Commands:").color(NamedTextColor.GOLD));
         sendPrefixed(player, Component.text(" • /vte summon").color(NamedTextColor.YELLOW)
                 .append(Component.text(" – Spawn managed static villager").color(NamedTextColor.GRAY)));
+        sendPrefixed(player, Component.text(" • /vte select [id]").color(NamedTextColor.YELLOW)
+                .append(Component.text(" – Select managed villager (look-at or by ID)").color(NamedTextColor.GRAY)));
+        sendPrefixed(player, Component.text(" • /vte deselect").color(NamedTextColor.YELLOW)
+                .append(Component.text(" – Clear selection").color(NamedTextColor.GRAY)));
+        sendPrefixed(player, Component.text(" • /vte tp [id]").color(NamedTextColor.YELLOW)
+                .append(Component.text(" – Teleport to selected villager").color(NamedTextColor.GRAY)));
+        sendPrefixed(player, Component.text(" • /vte tphere").color(NamedTextColor.YELLOW)
+                .append(Component.text(" – Teleport selected villager to you").color(NamedTextColor.GRAY)));
+        sendPrefixed(player, Component.text(" • /vte moveto <x> <y> <z> [world]").color(NamedTextColor.YELLOW)
+                .append(Component.text(" – Move selected to coords").color(NamedTextColor.GRAY)));
+        sendPrefixed(player, Component.text(" • /vte list [page]").color(NamedTextColor.YELLOW)
+                .append(Component.text(" – List managed villagers").color(NamedTextColor.GRAY)));
         sendPrefixed(player, Component.text(" • /vte reload").color(NamedTextColor.YELLOW)
                 .append(Component.text(" – Reload configuration").color(NamedTextColor.GRAY)));
 
@@ -474,11 +486,42 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
 
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, String[] args) {
-        if (sender instanceof Player && args.length == 1) {
+        if (!(sender instanceof Player)) return null;
+        if (args.length == 1) {
             List<String> completions = new ArrayList<>();
             completions.add("summon");
+            completions.add("select");
+            completions.add("deselect");
+            completions.add("tp");
+            completions.add("tphere");
+            completions.add("moveto");
+            completions.add("list");
             completions.add("reload");
-            return completions;
+            completions.add("help");
+            String prefix = args[0].toLowerCase();
+            List<String> filtered = new ArrayList<>();
+            for (String c : completions) {
+                if (c.startsWith(prefix)) filtered.add(c);
+            }
+            return filtered;
+        }
+        String sub = args[0].toLowerCase();
+        if (args.length == 2 && (sub.equals("select") || sub.equals("tp"))) {
+            List<String> ids = new ArrayList<>();
+            for (VillagerEntry e : registry.all()) {
+                ids.add(String.valueOf(e.id()));
+            }
+            return ids;
+        }
+        if (sub.equals("moveto")) {
+            if (args.length == 5) {
+                List<String> worlds = new ArrayList<>();
+                for (World w : Bukkit.getWorlds()) {
+                    worlds.add(w.getName());
+                }
+                return worlds;
+            }
+            return new ArrayList<>();
         }
         return null;
     }
