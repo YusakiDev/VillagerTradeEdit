@@ -44,6 +44,7 @@ import org.bukkit.util.io.BukkitObjectOutputStream;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.*;
@@ -90,6 +91,8 @@ public class VillagerEditListener implements Listener {
     private final NamespacedKey TYPE_KEY;
     private final NamespacedKey LEVEL_KEY;
     private final NamespacedKey FORCE_SPAWN_KEY;
+    private final org.bukkit.NamespacedKey VTE_ID_KEY;
+    private final VillagerRegistry registry;
     FoliaLib foliaLib;
 
 
@@ -104,6 +107,8 @@ public class VillagerEditListener implements Listener {
         TYPE_KEY = new NamespacedKey(plugin, "type");
         LEVEL_KEY = new NamespacedKey(plugin, "level");
         FORCE_SPAWN_KEY = plugin.getForceSpawnKey();
+        VTE_ID_KEY = plugin.getVteIdKey();
+        registry = plugin.getVillagerRegistry();
     }
 
 
@@ -161,6 +166,16 @@ public class VillagerEditListener implements Listener {
                 }
             }
         }
+    }
+
+    @EventHandler
+    public void onEntityRemoveFromWorld(com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent event) {
+        if (!(event.getEntity() instanceof Villager villager)) return;
+        if (registry == null) return;
+        PersistentDataContainer pdc = villager.getPersistentDataContainer();
+        if (!pdc.has(STATIC_KEY, PersistentDataType.STRING)) return;
+        String name = villager.getCustomName() != null ? villager.getCustomName() : "";
+        registry.updateLocation(villager.getUniqueId(), villager.getLocation(), name);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
@@ -228,6 +243,21 @@ public class VillagerEditListener implements Listener {
         }
 
         wrapper.logDebug("Successfully stored data for villager " + villagerId + " (profession: " + villager.getProfession().getKey().getKey() + ", trades: " + tradeCount + ")");
+
+        ensureRegistryEntry(villager);
+    }
+
+    private void ensureRegistryEntry(Villager villager) {
+        if (registry == null) return;
+        PersistentDataContainer pdc = villager.getPersistentDataContainer();
+        Integer storedId = pdc.get(VTE_ID_KEY, PersistentDataType.INTEGER);
+        if (storedId == null) {
+            int newId = registry.assignId(villager);
+            pdc.set(VTE_ID_KEY, PersistentDataType.INTEGER, newId);
+        } else {
+            String name = villager.getCustomName() != null ? villager.getCustomName() : "";
+            registry.updateLocation(villager.getUniqueId(), villager.getLocation(), name);
+        }
     }
 
     /**
@@ -285,6 +315,10 @@ public class VillagerEditListener implements Listener {
             villager.setRecipes(deserializeMerchantRecipes(tradesData));
 
             wrapper.logDebug("Successfully retrieved data for villager " + villager.getUniqueId() + " (profession: " + professionName + ", trades: " + tradeCount + ")");
+
+            if (dataContainer.has(STATIC_KEY, PersistentDataType.STRING)) {
+                ensureRegistryEntry(villager);
+            }
         });
     }
 
@@ -323,29 +357,54 @@ public class VillagerEditListener implements Listener {
      * @return A list of MerchantRecipe objects deserialized from the Base64-encoded string.
      */
     private List<MerchantRecipe> deserializeMerchantRecipes(String data) {
-        if (data == null) {
-            // Return an empty list if data is null
+        if (data == null || data.isBlank()) {
             return new ArrayList<>();
         }
 
+        byte[] bytes;
         try {
-            ByteArrayInputStream inputStream = new ByteArrayInputStream(Base64.getDecoder().decode(data));
-            BukkitObjectInputStream dataInput = new BukkitObjectInputStream(inputStream);
-            int size = dataInput.readInt(); // Read the size of the list
+            bytes = Base64.getDecoder().decode(data);
+        } catch (IllegalArgumentException e) {
+            wrapper.logDebug("Corrupt trade data (bad base64), returning empty list: " + e.getMessage());
+            return new ArrayList<>();
+        }
 
-            List<MerchantRecipe> recipes = new ArrayList<>(size);
+        if (bytes.length == 0) {
+            return new ArrayList<>();
+        }
 
-            // Read the list
+        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes);
+             BukkitObjectInputStream dataInput = new BukkitObjectInputStream(inputStream)) {
+            int size = dataInput.readInt();
+            List<MerchantRecipe> recipes = new ArrayList<>(Math.max(size, 0));
+
             for (int i = 0; i < size; i++) {
-                SerializableMerchantRecipe serializableRecipe = (SerializableMerchantRecipe) dataInput.readObject();
-                MerchantRecipe recipe = serializableRecipe.toMerchantRecipe();
-                neutralizeRecipeDiscounts(recipe);
-                recipes.add(recipe);
+                try {
+                    SerializableMerchantRecipe serializableRecipe = (SerializableMerchantRecipe) dataInput.readObject();
+                    MerchantRecipe recipe = serializableRecipe.toMerchantRecipe();
+                    neutralizeRecipeDiscounts(recipe);
+                    recipes.add(recipe);
+                } catch (EOFException e) {
+                    wrapper.logDebug("Truncated trade data at recipe " + i + " of " + size + ", returning " + recipes.size() + " loaded");
+                    return recipes;
+                } catch (java.io.StreamCorruptedException e) {
+                    wrapper.logDebug("Stream corrupted at recipe " + i + " of " + size + ", returning " + recipes.size() + " loaded: " + e.getMessage());
+                    return recipes;
+                } catch (ClassNotFoundException | java.io.InvalidClassException | java.io.InvalidObjectException e) {
+                    // Material/enum drift or class signature mismatch — skip this recipe, continue with next
+                    wrapper.logDebug("Skipping incompatible recipe " + i + " of " + size + " (likely material rename across MC versions): " + e.getMessage());
+                } catch (IOException e) {
+                    // Unknown IO failure mid-stream — stream position uncertain, stop
+                    wrapper.logDebug("IO failure at recipe " + i + " of " + size + ", returning " + recipes.size() + " loaded: " + e.getMessage());
+                    return recipes;
+                }
             }
 
-            dataInput.close();
             return recipes;
-        } catch (IOException | ClassNotFoundException e) {
+        } catch (EOFException e) {
+            wrapper.logDebug("Truncated trade data (likely legacy wipe), returning empty list");
+            return new ArrayList<>();
+        } catch (IOException e) {
             throw new IllegalStateException("Unable to load trades.", e);
         }
     }
@@ -566,28 +625,11 @@ public class VillagerEditListener implements Listener {
     }
 
     private void openPerPlayerMerchant(Villager villager, Player player) {
-        foliaLib.getScheduler().runAtEntity(villager, task -> {
-            // Copy and neutralize recipes from the villager
-            List<MerchantRecipe> recipes = new ArrayList<>();
-            for (MerchantRecipe r : villager.getRecipes()) {
-                MerchantRecipe copy = new MerchantRecipe(cloneOrAir(r.getResult()), r.getMaxUses());
-                for (ItemStack ing : r.getIngredients()) {
-                    if (ing != null && ing.getType() != Material.AIR) {
-                        copy.addIngredient(cloneOrAir(ing));
-                    }
-                }
-                copy.setExperienceReward(false);
-                neutralizeRecipeDiscounts(copy);
-                recipes.add(copy);
-            }
-
-            Merchant merchant = Bukkit.createMerchant(villager.customName() != null ? PlainTextComponentSerializer.plainText().serialize(villager.customName()) : "Villager");
-            merchant.setRecipes(recipes);
-
-            // Open for player on the player's context
-            foliaLib.getScheduler().runAtEntity(player, ptask -> {
-                player.openMerchant(merchant, true);
-            });
+        // Paper 26.1 broke openMerchant(Merchant, boolean) for Bukkit.createMerchant outputs
+        // (CraftMerchantCustom no longer castable to CraftEntity inside CraftHumanEntity.openMerchant).
+        // Open the villager directly; onInventoryOpen handler neutralizes discounts for managed villagers.
+        foliaLib.getScheduler().runAtEntity(player, ptask -> {
+            player.openMerchant(villager, true);
         });
     }
 
@@ -622,8 +664,8 @@ public class VillagerEditListener implements Listener {
                     }
                     editBuffer.put(villager, list);
 
-                    // Now render the page with the loaded trades
-                    foliaLib.getScheduler().runNextTick((task2) -> {
+                    // Now render the page with the loaded trades — open must run on player's region thread (Folia/Canvas 26.1 enforces)
+                    foliaLib.getScheduler().runAtEntity(player, (task2) -> {
                         renderPage(villager, finalInv, pageMap.getOrDefault(finalInv, 0));
                         inventoryMap.put(finalInv, villager);
                         player.openInventory(finalInv);
@@ -632,9 +674,12 @@ public class VillagerEditListener implements Listener {
                 return;
             }
         }
-        renderPage(villager, inv, pageMap.getOrDefault(inv, 0));
-        inventoryMap.put(inv, villager);
-        player.openInventory(inv);
+        final Inventory finalInv2 = inv;
+        foliaLib.getScheduler().runAtEntity(player, ptask -> {
+            renderPage(villager, finalInv2, pageMap.getOrDefault(finalInv2, 0));
+            inventoryMap.put(finalInv2, villager);
+            player.openInventory(finalInv2);
+        });
     }
 
     // Attempt to disable all dynamic discounts on a recipe
@@ -908,6 +953,7 @@ public class VillagerEditListener implements Listener {
         // Schedule removal on the villager's region thread
         foliaLib.getScheduler().runAtEntity(villager, task -> {
             try {
+                if (registry != null) registry.remove(villager.getUniqueId());
                 villager.remove();
             } catch (Throwable ignored) { }
             wrapper.sendMessage(player, "villagerDeleted");
