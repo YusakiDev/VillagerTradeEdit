@@ -877,7 +877,7 @@ public class VillagerEditListener implements Listener {
                         } else {
                             permissionMap.put(villagerId, permission);
                             villager.getPersistentDataContainer().set(PERMISSION_KEY, PersistentDataType.STRING, permission);
-                            wrapper.sendMessage(player, "permissionSet", permission);
+                            wrapper.sendMessage(player, "permissionSet", "0", permission);
                         }
 
                         // Reopen GUI and refresh label on next tick

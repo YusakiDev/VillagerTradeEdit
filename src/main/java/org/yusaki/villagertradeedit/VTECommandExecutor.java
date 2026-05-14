@@ -231,6 +231,10 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
             wrapper.sendMessage(player, "worldNotFound", "0", entry.world());
             return true;
         }
+        if (!wrapper.canExecuteInWorld(world)) {
+            wrapper.sendMessage(player, "disabledWorld");
+            return true;
+        }
         Location dest = new Location(world, entry.x(), entry.y(), entry.z());
         if (!world.getWorldBorder().isInside(dest)) {
             wrapper.sendMessage(player, "outsideWorldBorder");
@@ -338,6 +342,10 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
             }
         } else {
             world = player.getWorld();
+        }
+        if (!wrapper.canExecuteInWorld(world)) {
+            wrapper.sendMessage(player, "disabledWorld");
+            return true;
         }
         Location dest = new Location(world, x, y, z);
         if (!world.getWorldBorder().isInside(dest)) {
@@ -486,18 +494,26 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
 
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, String[] args) {
-        if (!(sender instanceof Player)) return null;
+        if (!(sender instanceof Player player)) return null;
+        if (!player.hasPermission("villagertradeedit.command")) return null;
+        boolean canMove = player.hasPermission("villagertradeedit.command.move");
+        boolean canList = player.hasPermission("villagertradeedit.command.list");
+        boolean canSummon = player.hasPermission("villagertradeedit.command.summon");
+        boolean canReload = player.hasPermission("villagertradeedit.command.reload");
+
         if (args.length == 1) {
             List<String> completions = new ArrayList<>();
-            completions.add("summon");
-            completions.add("select");
-            completions.add("deselect");
-            completions.add("tp");
-            completions.add("tphere");
-            completions.add("moveto");
-            completions.add("list");
-            completions.add("reload");
             completions.add("help");
+            if (canSummon) completions.add("summon");
+            if (canMove) {
+                completions.add("select");
+                completions.add("deselect");
+                completions.add("tp");
+                completions.add("tphere");
+                completions.add("moveto");
+            }
+            if (canList) completions.add("list");
+            if (canReload) completions.add("reload");
             String prefix = args[0].toLowerCase();
             List<String> filtered = new ArrayList<>();
             for (String c : completions) {
@@ -507,6 +523,7 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
         }
         String sub = args[0].toLowerCase();
         if (args.length == 2 && (sub.equals("select") || sub.equals("tp"))) {
+            if (!canMove) return new ArrayList<>();
             List<String> ids = new ArrayList<>();
             for (VillagerEntry e : registry.all()) {
                 ids.add(String.valueOf(e.id()));
@@ -514,6 +531,7 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
             return ids;
         }
         if (sub.equals("moveto")) {
+            if (!canMove) return new ArrayList<>();
             if (args.length == 5) {
                 List<String> worlds = new ArrayList<>();
                 for (World w : Bukkit.getWorlds()) {
