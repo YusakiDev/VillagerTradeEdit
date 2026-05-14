@@ -151,14 +151,14 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
                 int id = Integer.parseInt(args[1]);
                 VillagerEntry entry = registry.getById(id);
                 if (entry == null) {
-                    wrapper.sendMessage(player, "villagerIdUnknown", String.valueOf(id));
+                    wrapper.sendMessage(player, "villagerIdUnknown", "0", String.valueOf(id));
                     return true;
                 }
                 selections.put(player.getUniqueId(), id);
-                wrapper.sendMessage(player, "villagerSelected", String.valueOf(id), entry.name());
+                wrapper.sendMessage(player, "villagerSelected", "0", String.valueOf(id), "1", entry.name());
                 return true;
             } catch (NumberFormatException ex) {
-                wrapper.sendMessage(player, "villagerIdUnknown", args[1]);
+                wrapper.sendMessage(player, "villagerIdUnknown", "0", args[1]);
                 return true;
             }
         }
@@ -187,7 +187,7 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
         }
         selections.put(player.getUniqueId(), id);
         String name = villager.getCustomName() != null ? villager.getCustomName() : "";
-        wrapper.sendMessage(player, "villagerSelected", String.valueOf(id), name);
+        wrapper.sendMessage(player, "villagerSelected", "0", String.valueOf(id), "1", name);
         return true;
     }
 
