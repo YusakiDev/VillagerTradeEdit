@@ -37,6 +37,7 @@ public final class VillagerTradeEdit extends JavaPlugin {
         villagerEditListener = new VillagerEditListener();
         getServer().getPluginManager().registerEvents(villagerEditListener, this);
         VTECommandExecutor vteCommandExecutor = new VTECommandExecutor(this, villagerEditListener);
+        getServer().getPluginManager().registerEvents(new SelectionListener(vteCommandExecutor.getSelections()), this);
         this.getCommand("vte").setExecutor(vteCommandExecutor);
         this.getCommand("vte").setTabCompleter(vteCommandExecutor);
         applyCommandAliases();

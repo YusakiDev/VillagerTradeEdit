@@ -20,7 +20,10 @@ import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 public class VTECommandExecutor implements CommandExecutor, TabCompleter {
     private final VillagerTradeEdit plugin;
@@ -30,6 +33,7 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
     private final Component prefixComponent;
     private final boolean prefixEnabled;
     private final NamespacedKey forceSpawnKey;
+    private final Map<UUID, Integer> selections = new HashMap<>();
 
     public VTECommandExecutor(VillagerTradeEdit plugin, VillagerEditListener villagerEditListener) {
         this.plugin = plugin;
@@ -114,6 +118,10 @@ public class VTECommandExecutor implements CommandExecutor, TabCompleter {
         }
 
         return false;
+    }
+
+    public Map<UUID, Integer> getSelections() {
+        return selections;
     }
 
     private void sendPluginInfo(Player player) {
