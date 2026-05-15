@@ -32,3 +32,9 @@ permissions:
   villagertradeedit.command.reload:
     description: Allows reloading the plugin
     default: op
+  villagertradeedit.command.move:
+    description: Allows selecting, teleporting, and moving managed villagers
+    default: op
+  villagertradeedit.command.list:
+    description: Allows listing managed villagers
+    default: op

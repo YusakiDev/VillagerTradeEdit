@@ -2,7 +2,7 @@
 # Debug level (0-3): 0 = Severe only, 1 = Warn and above, 2 = Info and above, 3 = Debug and above
 debug: 1
 # Version number of the application do not change this
-version: 3.1
+version: 4.0
 
 settings:
   command-aliases:
@@ -33,3 +33,19 @@ messages:
   nameCleared: "&aVillager name cleared."
   nameUpdated: "&aVillager name updated."
   villagerDeleted: "&aVillager deleted."
+  noVillagerInSight: "&cNo villager in your line of sight."
+  villagerIdUnknown: "&cNo managed villager with ID {0}."
+  noSelection: "&cYou have no villager selected. Use /vte select."
+  selectionGone: "&cSelected villager no longer exists. Selection cleared."
+  selectionUnloaded: "&eVillager chunk loading, retrying..."
+  invalidCoords: "&cInvalid coordinates."
+  worldNotFound: "&cWorld '{0}' not found."
+  outsideWorldBorder: "&cDestination is outside the world border."
+  villagerSelected: "&aSelected villager #{0} {1}"
+  villagerMoved: "&aVillager #{0} moved."
+  playerTeleported: "&aTeleported to villager #{0}."
+  selectionCleared: "&aSelection cleared."
+  listHeader: "&6Managed Villagers (page {0}/{1}):"
+  listEntry: "&e#{0} &f{1} &7- {2} ({3}, {4}, {5})"
+  listFooter: "&7Page {0}/{1} - {2} total"
+  listEmpty: "&7No managed villagers."

@@ -17,7 +17,9 @@ public final class VillagerTradeEdit extends JavaPlugin {
     private FoliaLib foliaLib;
     private VillagerEditListener villagerEditListener;
     private NamespacedKey forceSpawnKey;
-    
+    private NamespacedKey vteIdKey;
+    private VillagerRegistry villagerRegistry;
+
     @Override
     public void onEnable() {
         saveDefaultConfig();
@@ -27,10 +29,15 @@ public final class VillagerTradeEdit extends JavaPlugin {
         wrapper = new YskLibWrapper(yskLib);
         foliaLib = new FoliaLib(this);
         forceSpawnKey = new NamespacedKey(this, "force_spawn");
+        vteIdKey = new NamespacedKey(this, "vte_id");
+        villagerRegistry = new VillagerRegistry(this, foliaLib);
+        villagerRegistry.load();
+        villagerRegistry.startAutoSave();
         getLogger().info("VillagerTradeEdit enabled!");
         villagerEditListener = new VillagerEditListener();
         getServer().getPluginManager().registerEvents(villagerEditListener, this);
         VTECommandExecutor vteCommandExecutor = new VTECommandExecutor(this, villagerEditListener);
+        getServer().getPluginManager().registerEvents(new SelectionListener(vteCommandExecutor.getSelections()), this);
         this.getCommand("vte").setExecutor(vteCommandExecutor);
         this.getCommand("vte").setTabCompleter(vteCommandExecutor);
         applyCommandAliases();
@@ -76,6 +83,9 @@ public final class VillagerTradeEdit extends JavaPlugin {
     public void onDisable() {
         getLogger().info("VillagerTradeEdit disabling, saving all managed villagers...");
         saveAllManagedVillagers();
+        if (villagerRegistry != null) {
+            villagerRegistry.save();
+        }
         getLogger().info("VillagerTradeEdit disabled!");
     }
 
@@ -118,6 +128,14 @@ public final class VillagerTradeEdit extends JavaPlugin {
 
     public NamespacedKey getForceSpawnKey() {
         return forceSpawnKey;
+    }
+
+    public NamespacedKey getVteIdKey() {
+        return vteIdKey;
+    }
+
+    public VillagerRegistry getVillagerRegistry() {
+        return villagerRegistry;
     }
 
     public void reloadPluginConfig() {
