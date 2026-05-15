@@ -279,6 +279,11 @@ public class VillagerEditListener implements Listener {
             boolean managed = staticValue != null && Boolean.parseBoolean(staticValue);
             staticMap.put(villagerId, managed);
             villager.setCollidable(!managed);
+            if (managed) {
+                villager.setGravity(false);
+                villager.setAware(false);
+                villager.setInvulnerable(true);
+            }
 
             String professionName = dataContainer.get(PROFESSION_KEY, PersistentDataType.STRING);
             allowCareerChange.add(villager.getUniqueId());
@@ -1015,6 +1020,7 @@ public class VillagerEditListener implements Listener {
         staticMap.put(villager.getUniqueId(), true);
         villager.setInvulnerable(true);
         villager.setAware(false);
+        villager.setGravity(false);
         villager.setVelocity(new Vector(0.0, 0.0, 0.0));
         Location currentLocation = villager.getLocation();
         Location centeredLocation = new Location(
