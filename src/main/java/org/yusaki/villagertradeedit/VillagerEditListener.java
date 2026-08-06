@@ -23,6 +23,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityKnockbackEvent;
 import org.bukkit.event.entity.VillagerCareerChangeEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
@@ -87,6 +88,7 @@ public class VillagerEditListener implements Listener {
     private final NamespacedKey STATIC_KEY;
     private final NamespacedKey PROFESSION_KEY;
     private final NamespacedKey TRADES_KEY;
+    private final NamespacedKey TRADES_BYTES_KEY;
     private final NamespacedKey PERMISSION_KEY;
     private final NamespacedKey TYPE_KEY;
     private final NamespacedKey LEVEL_KEY;
@@ -103,6 +105,7 @@ public class VillagerEditListener implements Listener {
         STATIC_KEY = new NamespacedKey(plugin, "static");
         PROFESSION_KEY = new NamespacedKey(plugin, "profession");
         TRADES_KEY = new NamespacedKey(plugin, "trades");
+        TRADES_BYTES_KEY = new NamespacedKey(plugin, "trades_bytes");
         PERMISSION_KEY = new NamespacedKey(plugin, "permission");
         TYPE_KEY = new NamespacedKey(plugin, "type");
         LEVEL_KEY = new NamespacedKey(plugin, "level");
@@ -227,8 +230,9 @@ public class VillagerEditListener implements Listener {
         dataContainer.set(PROFESSION_KEY, PersistentDataType.STRING, villager.getProfession().getKey().getKey());
         dataContainer.set(TYPE_KEY, PersistentDataType.STRING, villager.getVillagerType().getKey().getKey());
         dataContainer.set(LEVEL_KEY, PersistentDataType.INTEGER, villager.getVillagerLevel());
-        String tradesData = serializeMerchantRecipes(villager.getRecipes());
-        dataContainer.set(TRADES_KEY, PersistentDataType.STRING, tradesData);
+        byte[] tradesBytes = serializeMerchantRecipesBytes(villager.getRecipes());
+        dataContainer.set(TRADES_BYTES_KEY, PersistentDataType.BYTE_ARRAY, tradesBytes);
+        // Keep legacy TRADES_KEY as fallback — guards against decode regressions cementing empty trades.
         // Persist per-villager trade permission only when explicitly set (non-empty and not "none")
         String perm = permissionMap.get(villagerId);
         if (perm == null) {
@@ -269,8 +273,17 @@ public class VillagerEditListener implements Listener {
     public void retrieveVillagerData(Villager villager) {
         foliaLib.getScheduler().runAtEntity(villager, task -> {
             PersistentDataContainer dataContainer = villager.getPersistentDataContainer();
-            String tradesData = dataContainer.get(TRADES_KEY, PersistentDataType.STRING);
-            int tradeCount = tradesData != null ? deserializeMerchantRecipes(tradesData).size() : 0;
+            byte[] tradesBytes = dataContainer.get(TRADES_BYTES_KEY, PersistentDataType.BYTE_ARRAY);
+            String tradesData = tradesBytes == null ? dataContainer.get(TRADES_KEY, PersistentDataType.STRING) : null;
+            List<MerchantRecipe> loadedRecipes;
+            if (tradesBytes != null) {
+                loadedRecipes = deserializeMerchantRecipesBytes(tradesBytes);
+            } else if (tradesData != null) {
+                loadedRecipes = deserializeMerchantRecipes(tradesData);
+            } else {
+                loadedRecipes = new ArrayList<>();
+            }
+            int tradeCount = loadedRecipes.size();
 
             wrapper.logDebug("Retrieving data for villager " + villager.getUniqueId() + " (trades: " + tradeCount + ")");
 
@@ -283,6 +296,7 @@ public class VillagerEditListener implements Listener {
                 villager.setGravity(false);
                 villager.setAware(false);
                 villager.setInvulnerable(true);
+                villager.setSilent(plugin.getConfig().getBoolean("mute-villager-sound", false));
             }
 
             String professionName = dataContainer.get(PROFESSION_KEY, PersistentDataType.STRING);
@@ -317,7 +331,7 @@ public class VillagerEditListener implements Listener {
                 permissionMap.put(villagerId, permission);
             }
 
-            villager.setRecipes(deserializeMerchantRecipes(tradesData));
+            villager.setRecipes(loadedRecipes);
 
             wrapper.logDebug("Successfully retrieved data for villager " + villager.getUniqueId() + " (profession: " + professionName + ", trades: " + tradeCount + ")");
 
@@ -334,22 +348,20 @@ public class VillagerEditListener implements Listener {
      * @return A Base64-encoded string representing the serialized list of MerchantRecipe objects.
      */
     private String serializeMerchantRecipes(List<MerchantRecipe> recipes) {
+        return Base64.getEncoder().encodeToString(serializeMerchantRecipesBytes(recipes));
+    }
+
+    // BYTE_ARRAY variant — bypasses 65535-byte writeUTF cap that PDC STRING hits via NBT StringTag.
+    private byte[] serializeMerchantRecipesBytes(List<MerchantRecipe> recipes) {
         try {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             BukkitObjectOutputStream dataOutput = new BukkitObjectOutputStream(outputStream);
-
-            // Write the size of the list
             dataOutput.writeInt(recipes.size());
-
-            // Save every element in the list
             for (MerchantRecipe recipe : recipes) {
-                SerializableMerchantRecipe serializableRecipe = new SerializableMerchantRecipe(recipe);
-                dataOutput.writeObject(serializableRecipe);
+                dataOutput.writeObject(new SerializableMerchantRecipe(recipe));
             }
-
-            // Serialize that array
             dataOutput.close();
-            return Base64.getEncoder().encodeToString(outputStream.toByteArray());
+            return outputStream.toByteArray();
         } catch (Exception e) {
             throw new IllegalStateException("Unable to save trades.", e);
         }
@@ -365,7 +377,6 @@ public class VillagerEditListener implements Listener {
         if (data == null || data.isBlank()) {
             return new ArrayList<>();
         }
-
         byte[] bytes;
         try {
             bytes = Base64.getDecoder().decode(data);
@@ -373,8 +384,11 @@ public class VillagerEditListener implements Listener {
             wrapper.logDebug("Corrupt trade data (bad base64), returning empty list: " + e.getMessage());
             return new ArrayList<>();
         }
+        return deserializeMerchantRecipesBytes(bytes);
+    }
 
-        if (bytes.length == 0) {
+    private List<MerchantRecipe> deserializeMerchantRecipesBytes(byte[] bytes) {
+        if (bytes == null || bytes.length == 0) {
             return new ArrayList<>();
         }
 
@@ -1021,6 +1035,7 @@ public class VillagerEditListener implements Listener {
         villager.setInvulnerable(true);
         villager.setAware(false);
         villager.setGravity(false);
+        villager.setSilent(plugin.getConfig().getBoolean("mute-villager-sound", false));
         villager.setVelocity(new Vector(0.0, 0.0, 0.0));
         Location currentLocation = villager.getLocation();
         Location centeredLocation = new Location(
@@ -1359,6 +1374,17 @@ public class VillagerEditListener implements Listener {
         }
 
         if (isVillagerManaged(villager)) {
+            event.setCancelled(true);
+        }
+    }
+
+    /**
+     * Managed villagers are immovable. setInvulnerable blocks damage but explosion knockback
+     * is applied as a separate velocity impulse, so it must be cancelled here too.
+     */
+    @EventHandler
+    public void onEntityKnockback(EntityKnockbackEvent event) {
+        if (event.getEntity() instanceof Villager villager && isVillagerManaged(villager)) {
             event.setCancelled(true);
         }
     }

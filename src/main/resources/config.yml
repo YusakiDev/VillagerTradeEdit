@@ -2,7 +2,10 @@
 # Debug level (0-3): 0 = Severe only, 1 = Warn and above, 2 = Info and above, 3 = Debug and above
 debug: 1
 # Version number of the application do not change this
-version: 4.0
+version: 4.1
+
+# Mute the villager "hmm" / trade ambient sounds on managed villagers
+mute-villager-sound: false
 
 settings:
   command-aliases:

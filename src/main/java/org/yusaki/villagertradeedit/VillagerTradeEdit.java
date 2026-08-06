@@ -94,6 +94,11 @@ public final class VillagerTradeEdit extends JavaPlugin {
      * Called during plugin disable to ensure persistence through server restarts and sleep cycles.
      */
     private void saveAllManagedVillagers() {
+        // Folia: world.getEntities() + PDC writes off-region trip TickThread checks.
+        if (foliaLib != null && foliaLib.isFolia()) {
+            return;
+        }
+
         int savedCount = 0;
         for (org.bukkit.World world : Bukkit.getWorlds()) {
             if (!wrapper.canExecuteInWorld(world)) {
@@ -107,7 +112,6 @@ public final class VillagerTradeEdit extends JavaPlugin {
 
                     if (pdc.has(staticKey, org.bukkit.persistence.PersistentDataType.STRING)) {
                         if (villagerEditListener != null) {
-                            // Store data synchronously during shutdown
                             villagerEditListener.storeVillagerDataSync(villager);
                             savedCount++;
                         }
