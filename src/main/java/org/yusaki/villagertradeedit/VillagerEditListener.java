@@ -1503,10 +1503,21 @@ public class VillagerEditListener implements Listener {
         for (Entity entity : player.getNearbyEntities(TURN_RADIUS, TURN_RADIUS, TURN_RADIUS)) {
             if (entity instanceof Villager villager) {
                 if (isVillagerManaged(villager)) {
-                    turnVillagerTowardsPlayer(villager, playerLocation);
+                    if (!isViewingVillager(player, villager)) {
+                        turnVillagerTowardsPlayer(villager, playerLocation);
+                    }
                 }
             }
         }
+    }
+
+    private boolean isViewingVillager(Player player, Villager villager) {
+        Inventory top = player.getOpenInventory().getTopInventory();
+        if (inventoryMap.get(top) == villager) {
+            return true;
+        }
+        return top instanceof MerchantInventory merchantInventory
+                && merchantInventory.getMerchant() == villager;
     }
 
     private void turnVillagerTowardsPlayer(Villager villager, Location playerLocation) {
