@@ -29,7 +29,6 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
-import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.event.world.EntitiesLoadEvent;
@@ -49,6 +48,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * A class representing a listener for villager trading events in the VillagerTradeEdit plugin.
@@ -71,19 +71,19 @@ public class VillagerEditListener implements Listener {
 
     private VillagerTradeEdit plugin;
     YskLibWrapper wrapper;
-    private final Map<Inventory, Villager> inventoryMap = new HashMap<>();
-    private final Map<Inventory, Boolean> tradeAlteredMap = new HashMap<>();
-    private final Map<Inventory, Integer> pageMap = new HashMap<>();
-    private final Map<Villager, List<RecipeRow>> editBuffer = new HashMap<>();
-    private final Map<UUID, Boolean> staticMap = new HashMap<>();
-    private final Map<UUID, String> permissionMap = new HashMap<>();
-    private final Map<Villager, Villager.Profession> pendingProfessionMap = new HashMap<>();
+    private final Map<Inventory, Villager> inventoryMap = new ConcurrentHashMap<>();
+    private final Map<Inventory, Boolean> tradeAlteredMap = new ConcurrentHashMap<>();
+    private final Map<Inventory, Integer> pageMap = new ConcurrentHashMap<>();
+    private final Map<Villager, List<RecipeRow>> editBuffer = new ConcurrentHashMap<>();
+    private final Map<UUID, Boolean> staticMap = new ConcurrentHashMap<>();
+    private final Map<UUID, String> permissionMap = new ConcurrentHashMap<>();
+    private final Map<Villager, Villager.Profession> pendingProfessionMap = new ConcurrentHashMap<>();
     // Allows profession change events initiated by the plugin to pass
-    private final Set<UUID> allowCareerChange = new HashSet<>();
+    private final Set<UUID> allowCareerChange = ConcurrentHashMap.newKeySet();
     // Inventories whose close is internal (chat prompt round-trip): preserve buffer + state, skip save
-    private final Set<Inventory> suspendedInventories = new HashSet<>();
+    private final Set<Inventory> suspendedInventories = ConcurrentHashMap.newKeySet();
     // Tracks temporarily removed Hero of the Village effects per player during trading
-    private final Map<UUID, PotionEffect> removedHotv = new HashMap<>();
+    private final Map<UUID, PotionEffect> removedHotv = new ConcurrentHashMap<>();
 
     private final NamespacedKey STATIC_KEY;
     private final NamespacedKey PROFESSION_KEY;
@@ -129,14 +129,10 @@ public class VillagerEditListener implements Listener {
             return;
         }
         for (Entity entity : event.getChunk().getEntities()) {
-            if (entity instanceof Villager) {
-                Villager villager = (Villager) entity;
+            if (entity instanceof Villager villager) {
                 PersistentDataContainer dataContainer = villager.getPersistentDataContainer();
 
-                // Check if the villager has data stored
-                NamespacedKey staticKey = new NamespacedKey(plugin, "static");
-
-                if (dataContainer.has(staticKey, PersistentDataType.STRING)) {
+                if (dataContainer.has(STATIC_KEY, PersistentDataType.STRING)) {
                     wrapper.logDebug("Found villager with data in loaded chunk, attempting to retrieve data");
                     retrieveVillagerData(villager);
                 }
@@ -174,11 +170,16 @@ public class VillagerEditListener implements Listener {
     @EventHandler
     public void onEntityRemoveFromWorld(com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent event) {
         if (!(event.getEntity() instanceof Villager villager)) return;
+        UUID uuid = villager.getUniqueId();
+        staticMap.remove(uuid);
+        permissionMap.remove(uuid);
+        editBuffer.remove(villager);
+        pendingProfessionMap.remove(villager);
         if (registry == null) return;
         PersistentDataContainer pdc = villager.getPersistentDataContainer();
         if (!pdc.has(STATIC_KEY, PersistentDataType.STRING)) return;
         String name = villager.getCustomName() != null ? villager.getCustomName() : "";
-        registry.updateLocation(villager.getUniqueId(), villager.getLocation(), name);
+        registry.updateLocation(uuid, villager.getLocation(), name);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
@@ -1494,12 +1495,21 @@ public class VillagerEditListener implements Listener {
     }
 
     private static final double TURN_RADIUS = 5.0;
+    private static final long TURN_INTERVAL = 5L;
 
-    @EventHandler
-    public void onPlayerMove(PlayerMoveEvent event) {
-        Player player = event.getPlayer();
+    public void startTasks() {
+        foliaLib.getScheduler().runTimer(() -> {
+            for (Player player : new ArrayList<>(Bukkit.getOnlinePlayers())) {
+                foliaLib.getScheduler().runAtEntity(player, task -> turnNearbyVillagers(player));
+            }
+        }, TURN_INTERVAL, TURN_INTERVAL);
+    }
+
+    private void turnNearbyVillagers(Player player) {
+        if (!wrapper.canExecuteInWorld(player.getWorld())) {
+            return;
+        }
         Location playerLocation = player.getLocation();
-
         for (Entity entity : player.getNearbyEntities(TURN_RADIUS, TURN_RADIUS, TURN_RADIUS)) {
             if (entity instanceof Villager villager) {
                 if (isVillagerManaged(villager)) {

@@ -36,6 +36,7 @@ public final class VillagerTradeEdit extends JavaPlugin {
         getLogger().info("VillagerTradeEdit enabled!");
         villagerEditListener = new VillagerEditListener();
         getServer().getPluginManager().registerEvents(villagerEditListener, this);
+        villagerEditListener.startTasks();
         VTECommandExecutor vteCommandExecutor = new VTECommandExecutor(this, villagerEditListener);
         getServer().getPluginManager().registerEvents(new SelectionListener(vteCommandExecutor.getSelections()), this);
         this.getCommand("vte").setExecutor(vteCommandExecutor);
@@ -56,6 +57,7 @@ public final class VillagerTradeEdit extends JavaPlugin {
     private void restoreAllLoadedVillagers(VillagerEditListener listener) {
         foliaLib.getScheduler().runNextTick((task) -> {
             int restoredCount = 0;
+            org.bukkit.NamespacedKey staticKey = new org.bukkit.NamespacedKey(this, "static");
             for (org.bukkit.World world : Bukkit.getWorlds()) {
                 if (!wrapper.canExecuteInWorld(world)) {
                     continue;
@@ -64,7 +66,6 @@ public final class VillagerTradeEdit extends JavaPlugin {
                     if (entity instanceof org.bukkit.entity.Villager) {
                         org.bukkit.entity.Villager villager = (org.bukkit.entity.Villager) entity;
                         org.bukkit.persistence.PersistentDataContainer pdc = villager.getPersistentDataContainer();
-                        org.bukkit.NamespacedKey staticKey = new org.bukkit.NamespacedKey(this, "static");
 
                         if (pdc.has(staticKey, org.bukkit.persistence.PersistentDataType.STRING)) {
                             listener.retrieveVillagerData(villager);
@@ -100,6 +101,7 @@ public final class VillagerTradeEdit extends JavaPlugin {
         }
 
         int savedCount = 0;
+        org.bukkit.NamespacedKey staticKey = new org.bukkit.NamespacedKey(this, "static");
         for (org.bukkit.World world : Bukkit.getWorlds()) {
             if (!wrapper.canExecuteInWorld(world)) {
                 continue;
@@ -108,7 +110,6 @@ public final class VillagerTradeEdit extends JavaPlugin {
                 if (entity instanceof org.bukkit.entity.Villager) {
                     org.bukkit.entity.Villager villager = (org.bukkit.entity.Villager) entity;
                     org.bukkit.persistence.PersistentDataContainer pdc = villager.getPersistentDataContainer();
-                    org.bukkit.NamespacedKey staticKey = new org.bukkit.NamespacedKey(this, "static");
 
                     if (pdc.has(staticKey, org.bukkit.persistence.PersistentDataType.STRING)) {
                         if (villagerEditListener != null) {
