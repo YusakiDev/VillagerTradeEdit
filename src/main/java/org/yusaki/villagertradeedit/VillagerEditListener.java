@@ -18,7 +18,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
@@ -48,6 +47,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.util.*;
 
 /**
@@ -84,6 +85,7 @@ public class VillagerEditListener implements Listener {
     private final Set<Inventory> suspendedInventories = new HashSet<>();
     // Tracks temporarily removed Hero of the Village effects per player during trading
     private final Map<UUID, PotionEffect> removedHotv = new HashMap<>();
+    private final Map<UUID, Consumer<String>> pendingChatPrompts = new ConcurrentHashMap<>();
 
     private final NamespacedKey STATIC_KEY;
     private final NamespacedKey PROFESSION_KEY;
@@ -876,84 +878,75 @@ public class VillagerEditListener implements Listener {
     private void handleSetPermission(Villager villager, Player player, Inventory inv) {
         suspendedInventories.add(inv);
         player.closeInventory();
-        // Prompt the player to enter the new permission
         wrapper.sendMessage(player, "enterPermissionPrompt");
-        Bukkit.getPluginManager().registerEvents(new Listener() {
-            @EventHandler
-            public void onPlayerChat(AsyncChatEvent event) {
-                if (event.getPlayer().equals(player)) {
-                    // Capture and apply new permission
-                    String permission = PlainTextComponentSerializer.plainText().serialize(event.message()).trim();
-                    event.setCancelled(true);
-
-                    // Apply changes on the villager's region thread for Folia safety
-                    foliaLib.getScheduler().runAtEntity(villager, task -> {
-                        UUID villagerId = villager.getUniqueId();
-                        if (permission.equalsIgnoreCase("none") || permission.isBlank()) {
-                            permissionMap.remove(villagerId);
-                            villager.getPersistentDataContainer().remove(PERMISSION_KEY);
-                            wrapper.sendMessage(player, "permissionCleared");
-                        } else {
-                            permissionMap.put(villagerId, permission);
-                            villager.getPersistentDataContainer().set(PERMISSION_KEY, PersistentDataType.STRING, permission);
-                            wrapper.sendMessage(player, "permissionSet", "0", permission);
-                        }
-
-                        // Reopen GUI and refresh label on next tick
-                        foliaLib.getScheduler().runAtEntity(player, (task2) -> {
-                            inventoryMap.put(inv, villager);
-                            int currentPage = pageMap.getOrDefault(inv, 0);
-                            renderPage(villager, inv, currentPage);
-                            updatePermissionDisplayItem(inv, villager.getPersistentDataContainer().get(PERMISSION_KEY, PersistentDataType.STRING));
-                            player.openInventory(inv);
-                        });
-                    });
-
-                    // Unregister this temporary chat listener
-                    HandlerList.unregisterAll(this);
+        pendingChatPrompts.put(player.getUniqueId(), input -> {
+            String permission = input.trim();
+            foliaLib.getScheduler().runAtEntity(villager, task -> {
+                UUID villagerId = villager.getUniqueId();
+                if (permission.equalsIgnoreCase("none") || permission.isBlank()) {
+                    permissionMap.remove(villagerId);
+                    villager.getPersistentDataContainer().remove(PERMISSION_KEY);
+                    wrapper.sendMessage(player, "permissionCleared");
+                } else {
+                    permissionMap.put(villagerId, permission);
+                    villager.getPersistentDataContainer().set(PERMISSION_KEY, PersistentDataType.STRING, permission);
+                    wrapper.sendMessage(player, "permissionSet", "0", permission);
                 }
-            }
-        }, plugin);
+                foliaLib.getScheduler().runAtEntity(player, task2 -> {
+                    inventoryMap.put(inv, villager);
+                    int currentPage = pageMap.getOrDefault(inv, 0);
+                    renderPage(villager, inv, currentPage);
+                    updatePermissionDisplayItem(inv, villager.getPersistentDataContainer().get(PERMISSION_KEY, PersistentDataType.STRING));
+                    player.openInventory(inv);
+                });
+            });
+        });
     }
 
     private void handleSetName(Villager villager, Player player, Inventory inv) {
         suspendedInventories.add(inv);
         player.closeInventory();
         wrapper.sendMessage(player, "enterNamePrompt");
-        Bukkit.getPluginManager().registerEvents(new Listener() {
-            @EventHandler
-            public void onPlayerChat(AsyncChatEvent event) {
-                if (event.getPlayer().equals(player)) {
-                    event.setCancelled(true);
-                    String input = PlainTextComponentSerializer.plainText().serialize(event.message());
-                    if (input.equalsIgnoreCase("cancel")) {
-                        wrapper.sendMessage(player, "nameCancelled");
-                    } else if (input.equalsIgnoreCase("none")) {
-                        foliaLib.getScheduler().runAtEntity(villager, task -> {
-                            villager.customName(null);
-                            villager.setCustomNameVisible(false);
-                            wrapper.sendMessage(player, "nameCleared");
-                            updateNameDisplayItem(inv, null);
-                        });
-                    } else {
-                        Component comp = parseNameComponent(input);
-                        foliaLib.getScheduler().runAtEntity(villager, task -> {
-                            villager.customName(comp);
-                            villager.setCustomNameVisible(true);
-                            wrapper.sendMessage(player, "nameUpdated");
-                            updateNameDisplayItem(inv, villager.customName());
-                        });
-                    }
-                    HandlerList.unregisterAll(this);
-                    foliaLib.getScheduler().runAtEntity(player, (task) -> {
-                        inventoryMap.put(inv, villager);
-                        int currentPage = pageMap.getOrDefault(inv, 0);
-                        renderPage(villager, inv, currentPage);
-                        player.openInventory(inv);
-                    });
-                }
+        pendingChatPrompts.put(player.getUniqueId(), input -> {
+            if (input.equalsIgnoreCase("cancel")) {
+                wrapper.sendMessage(player, "nameCancelled");
+            } else if (input.equalsIgnoreCase("none")) {
+                foliaLib.getScheduler().runAtEntity(villager, task -> {
+                    villager.customName(null);
+                    villager.setCustomNameVisible(false);
+                    wrapper.sendMessage(player, "nameCleared");
+                    updateNameDisplayItem(inv, null);
+                });
+            } else {
+                Component comp = parseNameComponent(input);
+                foliaLib.getScheduler().runAtEntity(villager, task -> {
+                    villager.customName(comp);
+                    villager.setCustomNameVisible(true);
+                    wrapper.sendMessage(player, "nameUpdated");
+                    updateNameDisplayItem(inv, villager.customName());
+                });
             }
-        }, plugin);
+            foliaLib.getScheduler().runAtEntity(player, task -> {
+                inventoryMap.put(inv, villager);
+                int currentPage = pageMap.getOrDefault(inv, 0);
+                renderPage(villager, inv, currentPage);
+                player.openInventory(inv);
+            });
+        });
+    }
+
+    /**
+     * One handler for every chat prompt. AsyncChatEvent fires off the main thread, so the
+     * map is concurrent and the prompt body reschedules onto the right region itself.
+     */
+    @EventHandler(ignoreCancelled = true)
+    public void onPromptChat(AsyncChatEvent event) {
+        Consumer<String> prompt = pendingChatPrompts.remove(event.getPlayer().getUniqueId());
+        if (prompt == null) {
+            return;
+        }
+        event.setCancelled(true);
+        prompt.accept(PlainTextComponentSerializer.plainText().serialize(event.message()));
     }
 
     private void handleDeleteVillager(Villager villager, Player player, Inventory inv) {
@@ -1526,6 +1519,7 @@ public class VillagerEditListener implements Listener {
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         UUID id = event.getPlayer().getUniqueId();
+        pendingChatPrompts.remove(id);
         PotionEffect prev = removedHotv.remove(id);
         if (prev != null) {
             // Best-effort restore on next login not feasible; just drop to avoid giving free effect time.
