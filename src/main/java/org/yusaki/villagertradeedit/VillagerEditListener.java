@@ -939,14 +939,17 @@ public class VillagerEditListener implements Listener {
      * One handler for every chat prompt. AsyncChatEvent fires off the main thread, so the
      * map is concurrent and the prompt body reschedules onto the right region itself.
      */
-    @EventHandler(ignoreCancelled = true)
-    public void onPromptChat(AsyncChatEvent event) {
+    @SuppressWarnings("deprecation")
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onPromptChat(org.bukkit.event.player.AsyncPlayerChatEvent event) {
         Consumer<String> prompt = pendingChatPrompts.remove(event.getPlayer().getUniqueId());
         if (prompt == null) {
             return;
         }
+        // Paper fires this legacy event before AsyncChatEvent; cancelling here at LOWEST runs
+        // ahead of chat plugins (CMI) that otherwise echo the cancelled message to the sender.
         event.setCancelled(true);
-        prompt.accept(PlainTextComponentSerializer.plainText().serialize(event.message()));
+        prompt.accept(event.getMessage());
     }
 
     private void handleDeleteVillager(Villager villager, Player player, Inventory inv) {
