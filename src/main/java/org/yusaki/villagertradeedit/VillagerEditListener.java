@@ -1497,16 +1497,23 @@ public class VillagerEditListener implements Listener {
 
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
+        if (!event.hasChangedPosition()) {
+            return;
+        }
         Player player = event.getPlayer();
-        Location playerLocation = player.getLocation();
+        Location playerLocation = event.getTo().clone();
 
-        for (Entity entity : player.getNearbyEntities(TURN_RADIUS, TURN_RADIUS, TURN_RADIUS)) {
-            if (entity instanceof Villager villager) {
-                if (isVillagerManaged(villager)) {
+        // Vehicle/passenger moves can fire off the region thread on Folia; getNearbyEntities requires the owning tick thread.
+        foliaLib.getScheduler().runAtEntity(player, task -> {
+            if (!player.isOnline()) {
+                return;
+            }
+            for (Entity entity : player.getNearbyEntities(TURN_RADIUS, TURN_RADIUS, TURN_RADIUS)) {
+                if (entity instanceof Villager villager && isVillagerManaged(villager)) {
                     turnVillagerTowardsPlayer(villager, playerLocation);
                 }
             }
-        }
+        });
     }
 
     private void turnVillagerTowardsPlayer(Villager villager, Location playerLocation) {
