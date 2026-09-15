@@ -646,11 +646,28 @@ public class VillagerEditListener implements Listener {
     }
 
     private void openPerPlayerMerchant(Villager villager, Player player) {
-        // Paper 26.1 broke openMerchant(Merchant, boolean) for Bukkit.createMerchant outputs
-        // (CraftMerchantCustom no longer castable to CraftEntity inside CraftHumanEntity.openMerchant).
-        // Open the villager directly; onInventoryOpen handler neutralizes discounts for managed villagers.
-        foliaLib.getScheduler().runAtEntity(player, ptask -> {
-            player.openMerchant(villager, true);
+        // A villager entity holds a single trading player; Paper's openMerchant(villager, force)
+        // closes the previous trader's UI to hand it over. A detached Merchant per player avoids that.
+        foliaLib.getScheduler().runAtEntity(villager, task -> {
+            List<MerchantRecipe> recipes = new ArrayList<>();
+            for (MerchantRecipe r : villager.getRecipes()) {
+                MerchantRecipe copy = new MerchantRecipe(cloneOrAir(r.getResult()), r.getMaxUses());
+                for (ItemStack ing : r.getIngredients()) {
+                    if (ing != null && ing.getType() != Material.AIR) {
+                        copy.addIngredient(cloneOrAir(ing));
+                    }
+                }
+                copy.setExperienceReward(false);
+                neutralizeRecipeDiscounts(copy);
+                recipes.add(copy);
+            }
+            Component name = villager.customName();
+            Merchant merchant = name != null ? Bukkit.createMerchant(name) : Bukkit.createMerchant();
+            merchant.setRecipes(recipes);
+
+            foliaLib.getScheduler().runAtEntity(player, ptask -> {
+                player.openMerchant(merchant, true);
+            });
         });
     }
 
